@@ -72,13 +72,12 @@ jobs:
         run: |
           az --version
           az group create --location '${{ env.LOCATION }}' --name '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}'
-          az storage account create --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' --sku Standard_LRS
+          az storage account create --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' --sku Standard_LRS --allow-blob-public-access false
           az storage container create --name terraform --account-name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --auth-mode login
           
           # Assign Storage Blob Data Contributor role to the service principal
           STORAGE_ACCOUNT_ID=$(az storage account show --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' --query id -o tsv)
-          az role assignment create --assignee '${{ env.ARM_CLIENT_ID }}' --role 'Storage Blob Data Contributor' --scope "$STORAGE_ACCOUNT_ID"
-
+          
           # Check if role assignment already exists
           EXISTING_ASSIGNMENT=$(az role assignment list --assignee '${{ env.ARM_CLIENT_ID }}' --role 'Storage Blob Data Contributor' --scope "$STORAGE_ACCOUNT_ID" --query '[0].id' -o tsv)
                     
@@ -106,9 +105,11 @@ jobs:
           ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
           ARM_USE_OIDC: true
           ARM_USE_AZUREAD: true
+          ARM_STORAGE_USE_AZUREAD: true
         run: |
           export ARM_USE_OIDC=true
           export ARM_USE_AZUREAD=true
+          export ARM_STORAGE_USE_AZUREAD=true
           terraform init \
             -backend-config="resource_group_name=${{ env.TFSTATE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ env.TFSTATE_STORAGE_ACCT_NAME }}" \
@@ -128,6 +129,7 @@ jobs:
           ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
           ARM_USE_OIDC: true
           ARM_USE_AZUREAD: true
+          ARM_STORAGE_USE_AZUREAD: true
         working-directory: ${{ github.workspace }}/infra/terraform/public_workspace
         run: |
             terraform validate
@@ -140,6 +142,7 @@ jobs:
           ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
           ARM_USE_OIDC: true
           ARM_USE_AZUREAD: true
+          ARM_STORAGE_USE_AZUREAD: true
         run: | 
             terraform plan -out=tfplan
         working-directory: ${{ github.workspace }}/infra/terraform/public_workspace
@@ -151,6 +154,7 @@ jobs:
           ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
           ARM_USE_OIDC: true
           ARM_USE_AZUREAD: true
+          ARM_STORAGE_USE_AZUREAD: true
         run: |
             terraform apply -auto-approve -input=false tfplan
         working-directory: ${{ github.workspace }}/infra/terraform/public_workspace
