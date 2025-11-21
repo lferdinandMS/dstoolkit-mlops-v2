@@ -29,6 +29,10 @@ jobs:
 
       - name: Execute Dataset Registration
         shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ env.ARM_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ env.ARM_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ env.SUBSCRIPTION_ID }}
         run: |
               python -m mlops.common.register_data_asset \
                   --data_config_path config/data_config.json
