@@ -10,20 +10,38 @@ data assets and retrieving the latest version of these assets.
 import argparse
 import json
 import os
-from azure.identity import DefaultAzureCredential, AzureCliCredential
+from azure.identity import DefaultAzureCredential, ClientAssertionCredential
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Data
 from azure.ai.ml.constants import AssetTypes
 from mlops.common.config_utils import MLOpsConfig
 
 
+def get_token():
+    """Read the OIDC token from the file."""
+    token_file = os.getenv("AZURE_FEDERATED_TOKEN_FILE")
+    if token_file and os.path.exists(token_file):
+        with open(token_file) as f:
+            return f.read().strip()
+    return None
+
+
 def main():
     """Register all datasets from the config file."""
     config = MLOpsConfig()
 
-    # Use AzureCliCredential when AZURE_FEDERATED_TOKEN_FILE is not available
-    # This works after azure/login action runs
-    credential = AzureCliCredential() if not os.getenv("AZURE_FEDERATED_TOKEN_FILE") else DefaultAzureCredential()
+    # Use workload identity if available, otherwise fall back to DefaultAzureCredential
+    tenant_id = os.getenv("AZURE_TENANT_ID")
+    client_id = os.getenv("AZURE_CLIENT_ID")
+    
+    if tenant_id and client_id and os.getenv("AZURE_FEDERATED_TOKEN_FILE"):
+        credential = ClientAssertionCredential(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            func=get_token
+        )
+    else:
+        credential = DefaultAzureCredential()
 
     ml_client = MLClient(
         credential,
