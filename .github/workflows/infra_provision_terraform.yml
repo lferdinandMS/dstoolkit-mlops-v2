@@ -79,6 +79,18 @@ jobs:
           STORAGE_ACCOUNT_ID=$(az storage account show --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' --query id -o tsv)
           az role assignment create --assignee '${{ env.ARM_CLIENT_ID }}' --role 'Storage Blob Data Contributor' --scope "$STORAGE_ACCOUNT_ID"
 
+          # Check if role assignment already exists
+          EXISTING_ASSIGNMENT=$(az role assignment list --assignee '${{ env.ARM_CLIENT_ID }}' --role 'Storage Blob Data Contributor' --scope "$STORAGE_ACCOUNT_ID" --query '[0].id' -o tsv)
+                    
+          if [ -z "$EXISTING_ASSIGNMENT" ]; then
+            echo "Creating role assignment..."
+            az role assignment create --assignee '${{ env.ARM_CLIENT_ID }}' --role 'Storage Blob Data Contributor' --scope "$STORAGE_ACCOUNT_ID"
+            echo "Waiting 60 seconds for role assignment propagation..."
+            sleep 60
+          else
+            echo "Role assignment already exists, skipping wait."
+          fi
+
       - name: Terraform Install
         uses: hashicorp/setup-terraform@v3
         with:
