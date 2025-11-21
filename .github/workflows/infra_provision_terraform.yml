@@ -24,7 +24,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: login
         uses: Azure/login@v2
@@ -76,7 +76,7 @@ jobs:
           az storage container create --name terraform --account-name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --auth-mode login
 
       - name: Terraform Install
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: latest
       
@@ -87,22 +87,25 @@ jobs:
         env:
           ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ vars.SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}  
-        if: true
+          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
+          ARM_USE_OIDC: true
+          ARM_USE_AZUREAD: true
         run: |
           terraform init \
             -backend-config="resource_group_name=${{ env.TFSTATE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ env.TFSTATE_STORAGE_ACCT_NAME }}" \
             -backend-config="container_name=terraform" \
-            -backend-config="key=mlops.tfstate"
+            -backend-config="key=mlops.tfstate" \
+            -backend-config="use_azuread_auth=true"
         working-directory: ${{ github.workspace }}/infra/terraform/public_workspace
 
       - name: Terraform Validate
         env:
           ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ vars.SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }} 
-        if: true
+          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
+          ARM_USE_OIDC: true
+          ARM_USE_AZUREAD: true
         working-directory: ${{ github.workspace }}/infra/terraform/public_workspace
         run: |
             terraform validate
@@ -112,8 +115,9 @@ jobs:
         env:
           ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ vars.SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}     
-        if: true
+          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
+          ARM_USE_OIDC: true
+          ARM_USE_AZUREAD: true
         run: | 
             terraform plan -out=tfplan
         working-directory: ${{ github.workspace }}/infra/terraform/public_workspace
@@ -122,8 +126,9 @@ jobs:
         env:
           ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ vars.SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }} 
-        if: true
+          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
+          ARM_USE_OIDC: true
+          ARM_USE_AZUREAD: true
         run: |
             terraform apply -auto-approve -input=false tfplan
         working-directory: ${{ github.workspace }}/infra/terraform/public_workspace
