@@ -17,6 +17,9 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure Azure ML Agent
         uses: ./.github/actions/configure_azureml_agent
         with:
