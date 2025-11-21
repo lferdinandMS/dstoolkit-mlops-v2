@@ -1,8 +1,7 @@
 azure-cli==2.64.0
-azure-ai-ml==1.12.1
+azure-ai-ml==1.20.0
 azure-identity==1.16.1
 mlflow==2.11.3
 python-dotenv>=0.10.3
 azureml-mlflow>=1.51
 azureml-core
-marshmallow<4.0.0,>=3.18.0
