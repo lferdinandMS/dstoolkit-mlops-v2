@@ -9,7 +9,8 @@ data assets and retrieving the latest version of these assets.
 """
 import argparse
 import json
-from azure.identity import DefaultAzureCredential
+import os
+from azure.identity import DefaultAzureCredential, AzureCliCredential
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Data
 from azure.ai.ml.constants import AssetTypes
@@ -20,8 +21,12 @@ def main():
     """Register all datasets from the config file."""
     config = MLOpsConfig()
 
+    # Use AzureCliCredential when AZURE_FEDERATED_TOKEN_FILE is not available
+    # This works after azure/login action runs
+    credential = AzureCliCredential() if not os.getenv("AZURE_FEDERATED_TOKEN_FILE") else DefaultAzureCredential()
+
     ml_client = MLClient(
-        DefaultAzureCredential(),
+        credential,
         config.aml_config["subscription_id"],
         config.aml_config["resource_group_name"],
         config.aml_config["workspace_name"],
