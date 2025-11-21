@@ -49,8 +49,12 @@ resource "azurerm_container_registry" "acr" {
   storage_account_id            = azurerm_storage_account.stacc.id
   container_registry_id         = azurerm_container_registry.acr.id
   public_network_access_enabled = true
+  v1_legacy_mode_enabled        = false
   depends_on = [azurerm_resource_group.rg]
   identity {
     type = "SystemAssigned"
+  }
+  managed_network {
+    isolation_mode = "Disabled"
   }
 }
