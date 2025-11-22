@@ -107,6 +107,48 @@ jobs:
 
           echo "Canary OK. Data asset $ASSET_NAME:$TS created."
 
+      - name: "Bulk: upload and register datasets via CLI"
+        shell: bash
+        env:
+          AZURE_STORAGE_AUTH_MODE: login
+          RESOURCE_GROUP_NAME: ${{ env.RESOURCE_GROUP_NAME }}
+          WORKSPACE_NAME: ${{ env.WORKSPACE_NAME }}
+        run: |
+          set -euo pipefail
+          # Ensure jq is available
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y && sudo apt-get install -y jq
+          fi
+
+          ACCOUNT=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query account_name -o tsv)
+          CONTAINER=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query container_name -o tsv)
+          TS=$(date +%s)
+
+          echo "Starting bulk upload + registration with version=$TS"
+          while read -r row; do
+            NAME=$(echo "$row" | jq -r '.DATASET_NAME')
+            DESC=$(echo "$row" | jq -r '.DATASET_DESC')
+            SRC=$(echo "$row" | jq -r '.DATA_PATH')
+            DEST_PATH="datasets/$NAME/$TS"
+
+            echo "\nUploading '$SRC' -> '$CONTAINER/$DEST_PATH'"
+            az storage blob upload-batch \
+              --account-name "$ACCOUNT" \
+              --auth-mode login \
+              --destination "$CONTAINER/$DEST_PATH" \
+              --source "$SRC"
+
+            echo "Registering data asset '$NAME' version '$TS'"
+            az ml data create -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" \
+              --name "$NAME" \
+              --version "$TS" \
+              --type uri_folder \
+              --path "azureml://datastores/workspaceblobstore/paths/$DEST_PATH/" \
+              --description "$DESC" \
+              -o table
+          done < <(jq -c '.datasets[]' config/data_config.json)
+          echo "\nBulk registration complete."
+
       - name: "Optional: ensure latest azure-ai-ml + identity libs"
         shell: bash
         run: |
@@ -115,7 +157,8 @@ jobs:
           # Keep sdk fresh to avoid SAS fallbacks; harmless if already latest
           python -m pip install --upgrade "azure-ai-ml" "azure-identity" "azure-storage-blob"
 
-      - name: Execute Dataset Registration
+      - name: Execute Dataset Registration (Python) [disabled]
+        if: ${{ false }}
         shell: bash
         env:
           AZURE_STORAGE_AUTH_MODE: login
