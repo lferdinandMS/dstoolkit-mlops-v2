@@ -73,9 +73,21 @@ jobs:
       - name: Setup Terraform state storage
         run: |
           az --version
-          az group create --location '${{ env.LOCATION }}' --name '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}'
-          az storage account create --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' --sku Standard_LRS --allow-blob-public-access false
-          az storage container create --name terraform --account-name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --auth-mode login
+          az group create --location '${{ env.LOCATION }}' --name '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' || true
+          
+          # Create or update storage account with public network access enabled
+          az storage account create --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' \
+            --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' \
+            --sku Standard_LRS \
+            --allow-blob-public-access false \
+            --public-network-access Enabled \
+            --default-action Allow || \
+          az storage account update --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' \
+            --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' \
+            --public-network-access Enabled \
+            --default-action Allow
+          
+          az storage container create --name terraform --account-name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --auth-mode login || true
           
           # Assign Storage Blob Data Contributor role to the service principal
           STORAGE_ACCOUNT_ID=$(az storage account show --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' --query id -o tsv)
