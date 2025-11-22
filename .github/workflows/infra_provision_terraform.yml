@@ -15,6 +15,7 @@ env:
   ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
   ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
   SUBSCRIPTION_ID: ${{ vars.SUBSCRIPTION_ID }}
+  SERVICE_PRINCIPAL_OBJECT_ID: ${{ vars.SERVICE_PRINCIPAL_OBJECT_ID }}
 
 jobs:
   terraform:
@@ -67,6 +68,7 @@ jobs:
           TFSTATE_RESOURCE_GROUP_NAME: '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}'
           TFSTATE_STORAGE_ACCT_NAME: '${{ env.TFSTATE_STORAGE_ACCT_NAME }}'
           WORKSPACE_NAME: '${{ env.WORKSPACE_NAME }}'
+          SERVICE_PRINCIPAL_OBJECT_ID: '${{ env.SERVICE_PRINCIPAL_OBJECT_ID }}'
 
       - name: Setup Terraform state storage
         run: |

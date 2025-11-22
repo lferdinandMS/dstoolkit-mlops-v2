@@ -59,3 +59,8 @@ variable "location" {
   type    = string
   default = "eastus"
 }
+
+variable "service_principal_object_id" {
+  type        = string
+  description = "The Object ID of the service principal used for deployments"
+}

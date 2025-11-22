@@ -28,6 +28,9 @@ def get_token():
 
 def main():
     """Register all datasets from the config file."""
+    # Enable identity-based datastore authentication
+    os.environ["AZURE_STORAGE_AUTH_MODE"] = "login"
+    
     config = MLOpsConfig()
 
     # Use workload identity if available, otherwise fall back to DefaultAzureCredential
@@ -75,6 +78,7 @@ def main():
             name=dataset_name,
         )
 
+        # Use identity-based authentication by setting datastore credential
         ml_client.data.create_or_update(aml_dataset)
 
         aml_dataset_unlabeled = ml_client.data.get(

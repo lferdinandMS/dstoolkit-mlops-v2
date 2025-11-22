@@ -28,6 +28,7 @@ resource "azurerm_storage_account" "stacc" {
   resource_group_name      = var.rg_name
   account_tier             = "Standard"
   account_replication_type = "LRS"
+  shared_access_key_enabled = false
   depends_on = [azurerm_resource_group.rg]
 }
 
@@ -50,11 +51,27 @@ resource "azurerm_container_registry" "acr" {
   container_registry_id         = azurerm_container_registry.acr.id
   public_network_access_enabled = true
   v1_legacy_mode_enabled        = false
-  depends_on = [azurerm_resource_group.rg]
+  depends_on = [azurerm_resource_group.rg, azurerm_role_assignment.sp_storage_blob_contributor]
   identity {
     type = "SystemAssigned"
   }
   managed_network {
     isolation_mode = "Disabled"
   }
+}
+
+# Grant Storage Blob Data Contributor to the service principal
+resource "azurerm_role_assignment" "sp_storage_blob_contributor" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = var.service_principal_object_id
+  depends_on           = [azurerm_storage_account.stacc]
+}
+
+# Grant Storage Blob Data Contributor to the workspace managed identity
+resource "azurerm_role_assignment" "workspace_storage_blob_contributor" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
+  depends_on           = [azurerm_machine_learning_workspace.adl_mlw]
 }
