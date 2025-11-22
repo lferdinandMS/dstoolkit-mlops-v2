@@ -71,6 +71,50 @@ jobs:
           fi
           echo "Preflight OK: AAD access to datastore container works."
 
+      - name: "Canary: AAD upload and register data asset via CLI"
+        shell: bash
+        env:
+          AZURE_STORAGE_AUTH_MODE: login
+          RESOURCE_GROUP_NAME: ${{ env.RESOURCE_GROUP_NAME }}
+          WORKSPACE_NAME: ${{ env.WORKSPACE_NAME }}
+        run: |
+          set -euo pipefail
+          # Resolve account/container again
+          ACCOUNT=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query account_name -o tsv)
+          CONTAINER=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query container_name -o tsv)
+
+          ASSET_NAME="copilot_ping"
+          TS=$(date +%s)
+          DEST_PATH="copilot-ping/$TS"
+
+          echo "Creating small test payload..."
+          mkdir -p tmp_ping && echo "ok $(date -u +%FT%TZ)" > tmp_ping/readme.txt
+
+          echo "Uploading with AAD (no keys)..."
+          az storage blob upload-batch \
+            --account-name "$ACCOUNT" \
+            --auth-mode login \
+            --destination "$CONTAINER/$DEST_PATH" \
+            --source tmp_ping >/dev/null
+
+          echo "Registering a uri_folder data asset pointing to the uploaded path..."
+          az ml data create -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" \
+            --name "$ASSET_NAME" \
+            --version "$TS" \
+            --type uri_folder \
+            --path "azureml://datastores/workspaceblobstore/paths/$DEST_PATH/" \
+            -o table
+
+          echo "Canary OK. Data asset $ASSET_NAME:$TS created."
+
+      - name: "Optional: ensure latest azure-ai-ml + identity libs"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c "import azure.ai.ml, sys; print('azure-ai-ml version:', azure.ai.ml.__version__)" || true
+          # Keep sdk fresh to avoid SAS fallbacks; harmless if already latest
+          python -m pip install --upgrade "azure-ai-ml" "azure-identity" "azure-storage-blob"
+
       - name: Execute Dataset Registration
         shell: bash
         env:
