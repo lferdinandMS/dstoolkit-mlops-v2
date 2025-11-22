@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
 
 env:
-  SUBSCRIPTION_ID: ${{ vars.subscription_id }}
-  RESOURCE_GROUP_NAME: ${{ vars.resource_group_name }}
-  WORKSPACE_NAME: ${{ vars.workspace_name }}
+  SUBSCRIPTION_ID: ${{ vars.SUBSCRIPTION_ID }}
+  RESOURCE_GROUP_NAME: ${{ vars.RESOURCE_GROUP_NAME }}
+  WORKSPACE_NAME: ${{ vars.WORKSPACE_NAME }}
   ARM_CLIENT_ID:  ${{ vars.ARM_CLIENT_ID }}
   ARM_TENANT_ID:  ${{ vars.ARM_TENANT_ID }}
 
@@ -37,6 +37,34 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install --upgrade -r .github/requirements/execute_job_requirements.txt
+
+      - name: Preflight: verify identity access to default datastore
+        shell: bash
+        env:
+          AZURE_STORAGE_AUTH_MODE: login
+          RESOURCE_GROUP_NAME: ${{ env.RESOURCE_GROUP_NAME }}
+          WORKSPACE_NAME: ${{ env.WORKSPACE_NAME }}
+        run: |
+          set -euo pipefail
+          echo "Installing ML CLI extension (if missing)..."
+          az extension add -n ml -y >/dev/null 2>&1 || az extension update -n ml -y >/dev/null 2>&1 || true
+
+          echo "Resolving default blob datastore (workspaceblobstore)..."
+          ACCOUNT=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query properties.accountName -o tsv)
+          CONTAINER=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query properties.containerName -o tsv)
+
+          if [ -z "$ACCOUNT" ] || [ -z "$CONTAINER" ]; then
+            echo "ERROR: Could not resolve workspaceblobstore details (account/container)." >&2
+            exit 1
+          fi
+
+          echo "Checking container access via AAD login... (acct=$ACCOUNT, container=$CONTAINER)"
+          if ! az storage container show --name "$CONTAINER" --account-name "$ACCOUNT" --auth-mode login >/dev/null 2>&1; then
+            echo "ERROR: Identity-based access to the workspace default datastore failed." >&2
+            echo "Ensure the service principal has 'Storage Blob Data Contributor' on the workspace storage account." >&2
+            exit 1
+          fi
+          echo "Preflight OK: AAD access to datastore container works."
 
       - name: Execute Dataset Registration
         shell: bash
