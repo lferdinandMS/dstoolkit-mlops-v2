@@ -8,7 +8,11 @@
   provider "azurerm" {
     
     use_oidc = true
-    skip_provider_registration = "true"
-    features {}
+    resource_provider_registrations = "none"
+    features {
+      machine_learning {
+        purge_soft_deleted_workspace_on_destroy = true
+      }
+    }
     
   }

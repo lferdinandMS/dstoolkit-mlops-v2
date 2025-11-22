@@ -132,6 +132,21 @@ jobs:
         with:
           terraform_version: latest
       
+      - name: Purge soft-deleted workspace if exists
+        run: |
+          echo "Checking for soft-deleted workspace..."
+          WORKSPACE_EXISTS=$(az ml workspace show --name '${{ env.WORKSPACE_NAME }}' \
+            --resource-group '${{ env.RESOURCE_GROUP_NAME }}' --query name -o tsv 2>/dev/null || echo "")
+          
+          if [ -z "$WORKSPACE_EXISTS" ]; then
+            echo "Attempting to purge soft-deleted workspace..."
+            az resource delete --ids \
+              "/subscriptions/${{ env.SUBSCRIPTION_ID }}/providers/Microsoft.MachineLearningServices/deletedWorkspaces/${{ env.WORKSPACE_NAME }}" \
+              2>/dev/null || echo "No soft-deleted workspace found or already purged"
+          else
+            echo "Active workspace exists, no purge needed"
+          fi
+      
       - name: List current directory contents
         run: ls ${{ github.workspace }}
 
