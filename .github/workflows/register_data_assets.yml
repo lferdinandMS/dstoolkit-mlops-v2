@@ -50,17 +50,11 @@ jobs:
           az extension add -n ml -y >/dev/null 2>&1 || az extension update -n ml -y >/dev/null 2>&1 || true
 
           echo "Resolving default blob datastore (workspaceblobstore)..."
-          # Try snake_case first (CLI v2), then camelCase for compatibility
-          ACCOUNT=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query properties.account_name -o tsv 2>/dev/null || true)
-          if [ -z "$ACCOUNT" ] || [ "$ACCOUNT" = "null" ]; then
-            ACCOUNT=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query properties.accountName -o tsv 2>/dev/null || true)
-          fi
-          CONTAINER=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query properties.container_name -o tsv 2>/dev/null || true)
-          if [ -z "$CONTAINER" ] || [ "$CONTAINER" = "null" ]; then
-            CONTAINER=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query properties.containerName -o tsv 2>/dev/null || true)
-          fi
+          # Query root-level properties (not nested under .properties)
+          ACCOUNT=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query account_name -o tsv 2>/dev/null || true)
+          CONTAINER=$(az ml datastore show -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -n workspaceblobstore --query container_name -o tsv 2>/dev/null || true)
 
-          if [ -z "$ACCOUNT" ] || [ -z "$CONTAINER" ]; then
+          if [ -z "$ACCOUNT" ] || [ -z "$CONTAINER" ] || [ "$ACCOUNT" = "null" ] || [ "$CONTAINER" = "null" ]; then
             echo "ERROR: Could not resolve workspaceblobstore details (account/container)." >&2
             echo "Listing datastores for debugging..." >&2
             az ml datastore list -g "$RESOURCE_GROUP_NAME" -w "$WORKSPACE_NAME" -o table || true
