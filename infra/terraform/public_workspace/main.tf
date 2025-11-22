@@ -52,12 +52,13 @@ resource "azurerm_container_registry" "acr" {
   public_network_access_enabled = true
   v1_legacy_mode_enabled        = false
   depends_on = [azurerm_resource_group.rg, azurerm_role_assignment.sp_storage_blob_contributor]
+  
   identity {
     type = "SystemAssigned"
   }
-  managed_network {
-    isolation_mode = "Disabled"
-  }
+  
+  # Network isolation disabled - workspace accessible from public internet
+  # For production, consider enabling managed_network with appropriate isolation_mode
 }
 
 # Grant Storage Blob Data Contributor to the service principal
