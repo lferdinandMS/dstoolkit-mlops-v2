@@ -30,18 +30,18 @@ def main():
     """Register all datasets from the config file."""
     # Enable identity-based datastore authentication
     os.environ["AZURE_STORAGE_AUTH_MODE"] = "login"
-    
+
     config = MLOpsConfig()
 
     # Use workload identity if available, otherwise fall back to DefaultAzureCredential
     tenant_id = os.getenv("AZURE_TENANT_ID")
     client_id = os.getenv("AZURE_CLIENT_ID")
-    
+
     if tenant_id and client_id and os.getenv("AZURE_FEDERATED_TOKEN_FILE"):
         credential = ClientAssertionCredential(
             tenant_id=tenant_id,
             client_id=client_id,
-            func=get_token
+            func=get_token,
         )
     else:
         credential = DefaultAzureCredential()
