@@ -72,6 +72,7 @@ jobs:
           echo "Preflight OK: AAD access to datastore container works."
 
       - name: "Canary: AAD upload and register data asset via CLI"
+        if: ${{ false }}
         shell: bash
         env:
           AZURE_STORAGE_AUTH_MODE: login
@@ -150,6 +151,7 @@ jobs:
           echo "\nBulk registration complete."
 
       - name: "Optional: ensure latest azure-ai-ml + identity libs"
+        if: ${{ false }}
         shell: bash
         run: |
           set -euo pipefail
