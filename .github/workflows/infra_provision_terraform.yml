@@ -91,17 +91,40 @@ jobs:
           
           # Assign Storage Blob Data Contributor role to the service principal
           STORAGE_ACCOUNT_ID=$(az storage account show --name '${{ env.TFSTATE_STORAGE_ACCT_NAME }}' --resource-group '${{ env.TFSTATE_RESOURCE_GROUP_NAME }}' --query id -o tsv)
+          echo "Storage Account ID: $STORAGE_ACCOUNT_ID"
           
-          # Check if role assignment already exists
-          EXISTING_ASSIGNMENT=$(az role assignment list --assignee '${{ env.ARM_CLIENT_ID }}' --role 'Storage Blob Data Contributor' --scope "$STORAGE_ACCOUNT_ID" --query '[0].id' -o tsv)
-                    
-          if [ -z "$EXISTING_ASSIGNMENT" ]; then
-            echo "Creating role assignment..."
-            az role assignment create --assignee '${{ env.ARM_CLIENT_ID }}' --role 'Storage Blob Data Contributor' --scope "$STORAGE_ACCOUNT_ID"
-            echo "Waiting 60 seconds for role assignment propagation..."
-            sleep 60
+          # Try to create role assignment (ignore if it already exists)
+          echo "Assigning Storage Blob Data Contributor role to service principal..."
+          az role assignment create \
+            --assignee '${{ env.ARM_CLIENT_ID }}' \
+            --role 'Storage Blob Data Contributor' \
+            --scope "$STORAGE_ACCOUNT_ID" 2>/dev/null || echo "Role assignment already exists or failed (will verify)"
+          
+          # Also assign using Object ID to ensure proper permissions
+          echo "Assigning Storage Blob Data Contributor role using Object ID..."
+          az role assignment create \
+            --assignee-object-id '${{ env.SERVICE_PRINCIPAL_OBJECT_ID }}' \
+            --assignee-principal-type ServicePrincipal \
+            --role 'Storage Blob Data Contributor' \
+            --scope "$STORAGE_ACCOUNT_ID" 2>/dev/null || echo "Role assignment already exists or failed (will verify)"
+          
+          # Verify role assignment exists
+          echo "Verifying role assignment..."
+          ROLE_ASSIGNED=$(az role assignment list \
+            --assignee '${{ env.SERVICE_PRINCIPAL_OBJECT_ID }}' \
+            --role 'Storage Blob Data Contributor' \
+            --scope "$STORAGE_ACCOUNT_ID" \
+            --query '[0].id' -o tsv)
+          
+          if [ -z "$ROLE_ASSIGNED" ]; then
+            echo "ERROR: Role assignment verification failed!"
+            echo "Listing all role assignments for this service principal:"
+            az role assignment list --assignee '${{ env.SERVICE_PRINCIPAL_OBJECT_ID }}' --all -o table
+            exit 1
           else
-            echo "Role assignment already exists, skipping wait."
+            echo "Role assignment verified successfully"
+            echo "Waiting 45 seconds for role propagation..."
+            sleep 45
           fi
 
       - name: Terraform Install
