@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --upgrade -r .github/requirements/execute_job_requirements.txt
 
-      - name: Preflight: verify identity access to default datastore
+      - name: "Preflight: verify identity access to default datastore"
         shell: bash
         env:
           AZURE_STORAGE_AUTH_MODE: login
