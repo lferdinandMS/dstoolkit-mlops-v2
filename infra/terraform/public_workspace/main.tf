@@ -28,7 +28,8 @@ resource "azurerm_storage_account" "stacc" {
   resource_group_name      = var.rg_name
   account_tier             = "Standard"
   account_replication_type = "LRS"
-  shared_access_key_enabled = false
+  # Re-enabled shared keys to allow Azure ML pipeline data streaming (SAS generation required for mount).
+  shared_access_key_enabled = true
   depends_on = [azurerm_resource_group.rg]
 }
 
