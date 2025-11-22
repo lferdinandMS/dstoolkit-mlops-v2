@@ -210,3 +210,41 @@ jobs:
         run: |
             terraform apply -auto-approve -input=false tfplan
         working-directory: ${{ github.workspace }}/infra/terraform/public_workspace
+
+      - name: Ensure Workspace Storage RBAC
+        run: |
+          echo "Ensuring RBAC on workspace storage account..."
+          STORAGE_ACCOUNT_ID=$(az storage account show --name '${{ env.STORAGE_ACCT_NAME }}' --resource-group '${{ env.RESOURCE_GROUP_NAME }}' --query id -o tsv)
+          echo "Workspace Storage Account ID: $STORAGE_ACCOUNT_ID"
+
+          WS_PRINCIPAL_ID=$(az resource show -n '${{ env.WORKSPACE_NAME }}' -g '${{ env.RESOURCE_GROUP_NAME }}' --resource-type Microsoft.MachineLearningServices/workspaces --query identity.principalId -o tsv)
+          echo "Workspace Managed Identity Principal ID: $WS_PRINCIPAL_ID"
+
+          for ASSIGNEE in '${{ env.SERVICE_PRINCIPAL_OBJECT_ID }}' "$WS_PRINCIPAL_ID"; do
+            if [ -z "$ASSIGNEE" ] || [ "$ASSIGNEE" = "null" ]; then
+              echo "Skipping empty assignee value: $ASSIGNEE"
+              continue
+            fi
+            echo "Assigning Storage Blob Data Contributor to $ASSIGNEE ..."
+            az role assignment create \
+              --assignee-object-id "$ASSIGNEE" \
+              --assignee-principal-type ServicePrincipal \
+              --role 'Storage Blob Data Contributor' \
+              --scope "$STORAGE_ACCOUNT_ID" 2>/dev/null || echo "Role assignment already exists or failed (will verify)"
+
+            echo "Verifying assignment for $ASSIGNEE ..."
+            ASSIGNED=$(az role assignment list \
+              --assignee "$ASSIGNEE" \
+              --role 'Storage Blob Data Contributor' \
+              --scope "$STORAGE_ACCOUNT_ID" \
+              --query '[0].id' -o tsv)
+
+            if [ -z "$ASSIGNED" ]; then
+              echo "ERROR: Role assignment verification failed for $ASSIGNEE"
+              az role assignment list --assignee "$ASSIGNEE" --scope "$STORAGE_ACCOUNT_ID" -o table || true
+              exit 1
+            fi
+          done
+
+          echo "Waiting 30 seconds for RBAC propagation..."
+          sleep 30

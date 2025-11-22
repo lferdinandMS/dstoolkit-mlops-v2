@@ -51,7 +51,7 @@ resource "azurerm_container_registry" "acr" {
   container_registry_id         = azurerm_container_registry.acr.id
   public_network_access_enabled = true
   v1_legacy_mode_enabled        = false
-  depends_on = [azurerm_resource_group.rg, azurerm_role_assignment.sp_storage_blob_contributor]
+  depends_on = [azurerm_resource_group.rg]
   
   identity {
     type = "SystemAssigned"
@@ -61,18 +61,4 @@ resource "azurerm_container_registry" "acr" {
   # For production, consider enabling managed_network with appropriate isolation_mode
 }
 
-# Grant Storage Blob Data Contributor to the service principal
-resource "azurerm_role_assignment" "sp_storage_blob_contributor" {
-  scope                = azurerm_storage_account.stacc.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = var.service_principal_object_id
-  depends_on           = [azurerm_storage_account.stacc]
-}
-
-# Grant Storage Blob Data Contributor to the workspace managed identity
-resource "azurerm_role_assignment" "workspace_storage_blob_contributor" {
-  scope                = azurerm_storage_account.stacc.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
-  depends_on           = [azurerm_machine_learning_workspace.adl_mlw]
-}
+# Role assignments are handled idempotently in the CI workflow to avoid conflicts
