@@ -222,7 +222,7 @@ def prepare_and_execute_pipeline(pipeline: PipelineJobConfig):
     )
 
     if pipeline_config["cluster_name"] == "serverless":
-        pipeline_job.identity = ManagedIdentityConfiguration()
+        pipeline_job.identity = ManagedIdentityConfiguration(type="system_assigned")
 
     execute_pipeline(
         config.aml_config["subscription_id"],
