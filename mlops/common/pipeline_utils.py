@@ -4,7 +4,7 @@ from azure.identity import DefaultAzureCredential
 from azure.core.exceptions import ClientAuthenticationError
 from azure.ai.ml.dsl import pipeline
 from azure.ai.ml import MLClient
-from azure.ai.ml.entities import ManagedIdentityConfiguration
+from azure.ai.ml.entities import UserIdentityConfiguration
 import time
 
 from mlops.common.config_utils import MLOpsConfig
@@ -222,7 +222,7 @@ def prepare_and_execute_pipeline(pipeline: PipelineJobConfig):
     )
 
     if pipeline_config["cluster_name"] == "serverless":
-        pipeline_job.identity = ManagedIdentityConfiguration(type="system_assigned")
+        pipeline_job.identity = UserIdentityConfiguration()
 
     execute_pipeline(
         config.aml_config["subscription_id"],
