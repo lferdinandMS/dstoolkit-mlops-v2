@@ -13,6 +13,74 @@ from azure.ai.ml.entities import AmlCompute, IdentityConfiguration
 import subprocess
 
 
+def _assign_storage_role(client, workspace_name, compute_object):
+    """Assign Storage Blob Data Contributor role to the compute identity."""
+    if not (compute_object.identity and compute_object.identity.principal_id):
+        return
+
+    print(f"Ensuring RBAC for compute identity {compute_object.identity.principal_id}...")
+    try:
+        ws = client.workspaces.get(workspace_name)
+        storage_id = ws.storage_account
+
+        cmd = [
+            "az",
+            "role",
+            "assignment",
+            "create",
+            "--assignee",
+            compute_object.identity.principal_id,
+            "--role",
+            "Storage Blob Data Contributor",
+            "--scope",
+            storage_id,
+        ]
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        print("Role assignment successful.")
+    except subprocess.CalledProcessError as e:
+        if "RoleAssignmentExists" in e.stderr:
+            print("Role assignment already exists.")
+        else:
+            print(f"Warning: Failed to assign role: {e.stderr}")
+    except Exception as e:
+        print(f"Warning: Could not assign role: {e}")
+
+
+def _get_or_create_compute_target(
+    client,
+    cluster_name,
+    cluster_size,
+    cluster_region,
+    min_instances,
+    max_instances,
+    idle_time_before_scale_down,
+):
+    """Get existing compute or create new one."""
+    try:
+        compute_object = client.compute.get(cluster_name)
+        print(f"Found existing compute target {cluster_name}, so using it.")
+        # Ensure identity is enabled even for existing clusters
+        if not compute_object.identity:
+            print(f"Enabling SystemAssigned identity for {cluster_name}...")
+            compute_object.identity = IdentityConfiguration(type="SystemAssigned")
+            client.compute.begin_create_or_update(compute_object).result()
+            print(f"Identity enabled for {cluster_name}.")
+        return compute_object
+    except Exception:
+        print(f"{cluster_name} is not found! Trying to create a new one.")
+        compute_object = AmlCompute(
+            name=cluster_name,
+            type="amlcompute",
+            size=cluster_size,
+            location=cluster_region,
+            min_instances=min_instances,
+            max_instances=max_instances,
+            idle_time_before_scale_down=idle_time_before_scale_down,
+            identity=IdentityConfiguration(type="SystemAssigned"),
+        )
+        return client.compute.begin_create_or_update(compute_object).result()
+
+
 def get_compute(
     subscription_id: str,
     resource_group_name: str,
@@ -25,7 +93,6 @@ def get_compute(
     idle_time_before_scale_down: int = 600,
 ):
     """Get an existing compute or create a new one."""
-    compute_object = None
     try:
         client = MLClient(
             DefaultAzureCredential(),
@@ -33,58 +100,25 @@ def get_compute(
             resource_group_name=resource_group_name,
             workspace_name=workspace_name,
         )
-        try:
-            compute_object = client.compute.get(cluster_name)
-            print(f"Found existing compute target {cluster_name}, so using it.")
-            # Ensure identity is enabled even for existing clusters
-            if not compute_object.identity:
-                print(f"Enabling SystemAssigned identity for {cluster_name}...")
-                compute_object.identity = IdentityConfiguration(type="SystemAssigned")
-                client.compute.begin_create_or_update(compute_object).result()
-                print(f"Identity enabled for {cluster_name}.")
-        except Exception:
-            print(f"{cluster_name} is not found! Trying to create a new one.")
-            compute_object = AmlCompute(
-                name=cluster_name,
-                type="amlcompute",
-                size=cluster_size,
-                location=cluster_region,
-                min_instances=min_instances,
-                max_instances=max_instances,
-                idle_time_before_scale_down=idle_time_before_scale_down,
-                identity=IdentityConfiguration(type="SystemAssigned"),
-            )
-            compute_object = client.compute.begin_create_or_update(
-                compute_object
-            ).result()
-            print(f"A new cluster {cluster_name} has been created.")
 
-        # Assign Storage Blob Data Contributor role to the compute identity
-        if compute_object.identity and compute_object.identity.principal_id:
-            print(f"Ensuring RBAC for compute identity {compute_object.identity.principal_id}...")
-            try:
-                ws = client.workspaces.get(workspace_name)
-                storage_id = ws.storage_account
-                
-                cmd = [
-                    "az", "role", "assignment", "create",
-                    "--assignee", compute_object.identity.principal_id,
-                    "--role", "Storage Blob Data Contributor",
-                    "--scope", storage_id
-                ]
-                subprocess.run(cmd, check=True, capture_output=True, text=True)
-                print("Role assignment successful.")
-            except subprocess.CalledProcessError as e:
-                if "RoleAssignmentExists" in e.stderr:
-                    print("Role assignment already exists.")
-                else:
-                    print(f"Warning: Failed to assign role: {e.stderr}")
-            except Exception as e:
-                print(f"Warning: Could not assign role: {e}")
+        compute_object = _get_or_create_compute_target(
+            client,
+            cluster_name,
+            cluster_size,
+            cluster_region,
+            min_instances,
+            max_instances,
+            idle_time_before_scale_down,
+        )
+
+        _assign_storage_role(client, workspace_name, compute_object)
+
+        return compute_object
 
     except Exception as ex:
-        "An error occurred while trying to create or update the Azure ML environment. "
-        "Please check your credentials, subscription details, and workspace configuration, and try again. "
-        f"Error details: {ex}"
+        print(
+            "An error occurred while trying to create or update the Azure ML environment. "
+            "Please check your credentials, subscription details, and workspace configuration, and try again. "
+            f"Error details: {ex}"
+        )
         raise
-    return compute_object

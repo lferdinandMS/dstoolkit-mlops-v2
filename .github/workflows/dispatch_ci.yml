@@ -7,7 +7,7 @@ on:
         type: string
         description: "Execution environment"
         required: false
-        default: "ci"
+        default: "pr"
       model_type:
         type: string
         description: "Model type to run (e.g., nyc_taxi, london_taxi, docker_taxi)"
