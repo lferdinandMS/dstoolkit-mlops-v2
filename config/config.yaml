@@ -20,7 +20,7 @@ pipeline_configs:
   nyc_taxi_pr: 
     cluster_region: eastus
     cluster_size: STANDARD_DS3_v2
-    cluster_name: cpucluster
+    cluster_name: serverless
     conda_path: mlops/nyc_taxi/environment/conda.yml
     aml_env_name: nyc_env
     dataset_name: nyc_taxi_pr_data
