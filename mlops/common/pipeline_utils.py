@@ -174,14 +174,18 @@ def prepare_and_execute_pipeline(pipeline: PipelineJobConfig):
         config.aml_config["workspace_name"],
     )
 
-    compute = get_compute(
-        config.aml_config["subscription_id"],
-        config.aml_config["resource_group_name"],
-        config.aml_config["workspace_name"],
-        pipeline_config["cluster_name"],
-        pipeline_config["cluster_size"],
-        pipeline_config["cluster_region"],
-    )
+    if pipeline_config["cluster_name"] == "serverless":
+        compute = None
+        print("Using serverless compute.")
+    else:
+        compute = get_compute(
+            config.aml_config["subscription_id"],
+            config.aml_config["resource_group_name"],
+            config.aml_config["workspace_name"],
+            pipeline_config["cluster_name"],
+            pipeline_config["cluster_size"],
+            pipeline_config["cluster_region"],
+        )
 
     environment = get_environment(
         config.aml_config["subscription_id"],
@@ -211,7 +215,7 @@ def prepare_and_execute_pipeline(pipeline: PipelineJobConfig):
 
     pipeline_job = set_pipeline_properties(
         pipeline_job,
-        cluster_name=compute.name,
+        cluster_name=compute.name if compute else "serverless",
         display_name=published_run_name,
         tags=pipeline_job_tags,
     )
