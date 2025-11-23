@@ -28,7 +28,7 @@ def main(model_metadata, model_name, score_report, build_reference):
 
         # Ensure MLflow is properly configured for Azure ML
         mlflow.set_tracking_uri(mlflow.get_tracking_uri())
-        
+
         model_version = mlflow.register_model(run_uri, model_name)
 
         client = mlflow.MlflowClient()
