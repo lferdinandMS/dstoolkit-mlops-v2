@@ -62,4 +62,12 @@ resource "azurerm_container_registry" "acr" {
   # For production, consider enabling managed_network with appropriate isolation_mode
 }
 
+# Ensure the workspace managed identity can access the storage account used by AML datastores.
+resource "azurerm_role_assignment" "workspace_storage_blob_data_contributor" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
+  depends_on           = [azurerm_machine_learning_workspace.adl_mlw, azurerm_storage_account.stacc]
+}
+
 # Role assignments are handled idempotently in the CI workflow to avoid conflicts
