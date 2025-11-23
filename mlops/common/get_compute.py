@@ -9,7 +9,8 @@ arguments for specifying the details of the Azure Machine Learning compute targe
 
 from azure.identity import DefaultAzureCredential
 from azure.ai.ml import MLClient
-from azure.ai.ml.entities import AmlCompute
+from azure.ai.ml.entities import AmlCompute, IdentityConfiguration
+import subprocess
 
 
 def get_compute(
@@ -35,6 +36,12 @@ def get_compute(
         try:
             compute_object = client.compute.get(cluster_name)
             print(f"Found existing compute target {cluster_name}, so using it.")
+            # Ensure identity is enabled even for existing clusters
+            if not compute_object.identity:
+                print(f"Enabling SystemAssigned identity for {cluster_name}...")
+                compute_object.identity = IdentityConfiguration(type="SystemAssigned")
+                client.compute.begin_create_or_update(compute_object).result()
+                print(f"Identity enabled for {cluster_name}.")
         except Exception:
             print(f"{cluster_name} is not found! Trying to create a new one.")
             compute_object = AmlCompute(
@@ -45,11 +52,36 @@ def get_compute(
                 min_instances=min_instances,
                 max_instances=max_instances,
                 idle_time_before_scale_down=idle_time_before_scale_down,
+                identity=IdentityConfiguration(type="SystemAssigned"),
             )
             compute_object = client.compute.begin_create_or_update(
                 compute_object
             ).result()
             print(f"A new cluster {cluster_name} has been created.")
+
+        # Assign Storage Blob Data Contributor role to the compute identity
+        if compute_object.identity and compute_object.identity.principal_id:
+            print(f"Ensuring RBAC for compute identity {compute_object.identity.principal_id}...")
+            try:
+                ws = client.workspaces.get(workspace_name)
+                storage_id = ws.storage_account
+                
+                cmd = [
+                    "az", "role", "assignment", "create",
+                    "--assignee", compute_object.identity.principal_id,
+                    "--role", "Storage Blob Data Contributor",
+                    "--scope", storage_id
+                ]
+                subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print("Role assignment successful.")
+            except subprocess.CalledProcessError as e:
+                if "RoleAssignmentExists" in e.stderr:
+                    print("Role assignment already exists.")
+                else:
+                    print(f"Warning: Failed to assign role: {e.stderr}")
+            except Exception as e:
+                print(f"Warning: Could not assign role: {e}")
+
     except Exception as ex:
         "An error occurred while trying to create or update the Azure ML environment. "
         "Please check your credentials, subscription details, and workspace configuration, and try again. "

@@ -28,8 +28,8 @@ resource "azurerm_storage_account" "stacc" {
   resource_group_name      = var.rg_name
   account_tier             = "Standard"
   account_replication_type = "LRS"
-  # Re-enabled shared keys to allow Azure ML pipeline data streaming (SAS generation required for mount).
-  shared_access_key_enabled = true
+  # Policy enforces this to be false. We must use Identity-based access for datastores.
+  shared_access_key_enabled = false
   depends_on = [azurerm_resource_group.rg]
 }
 
@@ -60,14 +60,6 @@ resource "azurerm_container_registry" "acr" {
   
   # Network isolation disabled - workspace accessible from public internet
   # For production, consider enabling managed_network with appropriate isolation_mode
-}
-
-# Ensure the workspace managed identity can access the storage account used by AML datastores.
-resource "azurerm_role_assignment" "workspace_storage_blob_data_contributor" {
-  scope                = azurerm_storage_account.stacc.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
-  depends_on           = [azurerm_machine_learning_workspace.adl_mlw, azurerm_storage_account.stacc]
 }
 
 # Role assignments are handled idempotently in the CI workflow to avoid conflicts
