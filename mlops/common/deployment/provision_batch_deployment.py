@@ -4,6 +4,7 @@ This script automates the deployment of machine learning models in Azure Machine
 It supports both batch deployment scenario.
 """
 import argparse
+import time
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Environment
 from azure.identity import DefaultAzureCredential
@@ -14,9 +15,62 @@ from azure.ai.ml.entities import (
     CodeConfiguration,
 )
 from azure.ai.ml.constants import BatchDeploymentOutputAction
+from azure.core.exceptions import ResourceExistsError
 from mlops.common.config_utils import MLOpsConfig
 from mlops.common.naming_utils import generate_model_name
 from mlops.common.get_compute import get_compute
+
+
+def wait_for_endpoint_ready(ml_client, endpoint_name, max_wait=600):
+    """Wait for endpoint to be ready for operations."""
+    print(f"Checking if endpoint {endpoint_name} is ready for operations...")
+    start_time = time.time()
+    
+    while time.time() - start_time < max_wait:
+        try:
+            endpoint = ml_client.batch_endpoints.get(endpoint_name)
+            print(f"Endpoint state: {endpoint.provisioning_state}")
+            
+            if endpoint.provisioning_state == "Succeeded":
+                print(f"Endpoint {endpoint_name} is ready")
+                return True
+            elif endpoint.provisioning_state in ["Failed", "Canceled"]:
+                raise Exception(f"Endpoint in {endpoint.provisioning_state} state")
+            else:
+                print(f"Endpoint still provisioning ({endpoint.provisioning_state}). Waiting 30 seconds...")
+                time.sleep(30)
+        except Exception as e:
+            if "not found" in str(e).lower() or "ResourceNotFound" in str(e):
+                print(f"Endpoint {endpoint_name} does not exist yet - ready to create")
+                return True
+            raise
+    
+    raise TimeoutError(f"Endpoint not ready after {max_wait} seconds")
+
+
+def deploy_with_retry(ml_client, deployment, max_retries=3, initial_delay=60):
+    """Deploy with retry logic for concurrent operation conflicts."""
+    for attempt in range(max_retries):
+        try:
+            print(f"Deployment attempt {attempt + 1}/{max_retries}...")
+            poller = ml_client.begin_create_or_update(deployment)
+            result = poller.result()
+            print("Deployment completed successfully")
+            return result
+        except ResourceExistsError as e:
+            if "Already running method" in str(e) and attempt < max_retries - 1:
+                delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                print(f"Conflict detected: Another operation is in progress.")
+                print(f"Waiting {delay} seconds before retry {attempt + 2}/{max_retries}...")
+                time.sleep(delay)
+            else:
+                print(f"Deployment failed after {attempt + 1} attempts")
+                raise
+        except Exception as e:
+            print(f"Unexpected error during deployment: {str(e)}")
+            raise
+    
+    raise Exception("Deployment failed after all retry attempts")
 
 
 def main():
@@ -116,11 +170,17 @@ def main():
         },
     )
 
-    ml_client.begin_create_or_update(deployment).result()
+    # Wait for endpoint to be ready before deploying
+    wait_for_endpoint_ready(ml_client, deployment_config["endpoint_name"])
+    
+    # Deploy with retry logic
+    deploy_with_retry(ml_client, deployment)
 
+    # Update default deployment with retry logic
+    print("Updating default deployment...")
     endpoint = ml_client.batch_endpoints.get(deployment_config["endpoint_name"])
     endpoint.defaults.deployment_name = deployment.name
-    ml_client.batch_endpoints.begin_create_or_update(endpoint).result()
+    deploy_with_retry(ml_client, endpoint)
     print(f"The default deployment is {endpoint.defaults.deployment_name}")
 
 
