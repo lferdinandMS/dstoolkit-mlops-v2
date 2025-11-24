@@ -104,7 +104,7 @@ class NYCTaxi(PipelineJobConfig):
 
         pipeline_job = nyc_taxi_data_regression(
             Input(type="uri_folder", path=registered_data_asset.id),
-            self.model_name,
+            self.published_model_name,
             self.build_reference,
         )
 

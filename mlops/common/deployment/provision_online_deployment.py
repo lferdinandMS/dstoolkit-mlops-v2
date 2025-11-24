@@ -48,10 +48,26 @@ def main():
     deployment_config = config.get_deployment_config(deployment_name=f"{model_type}_online")
 
     published_model_name = generate_model_name(model_type)
+    
+    print(f"Looking for model: {published_model_name}")
 
-    model_refs = ml_client.models.list(published_model_name)
-    latest_version = max(model.version for model in model_refs)
-    model = ml_client.models.get(published_model_name, latest_version)
+    try:
+        model_refs = ml_client.models.list(published_model_name)
+        model_list = list(model_refs)
+        
+        if not model_list:
+            print(f"ERROR: No models found with name '{published_model_name}'")
+            print("Available models:")
+            for model in ml_client.models.list():
+                print(f"  - {model.name} (version {model.version})")
+            raise ValueError(f"Model '{published_model_name}' not found. Please check model name and ensure training completed successfully.")
+        
+        latest_version = max(model.version for model in model_list)
+        print(f"Found model version: {latest_version}")
+        model = ml_client.models.get(published_model_name, latest_version)
+    except Exception as e:
+        print(f"Error retrieving model '{published_model_name}': {str(e)}")
+        raise
 
     environment = Environment(
         conda_file=deployment_config["deployment_conda_path"],

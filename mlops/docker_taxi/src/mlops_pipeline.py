@@ -104,7 +104,7 @@ class DockerTaxi(PipelineJobConfig):
 
         pipeline_job = docker_taxi_data_regression(
             Input(type="uri_folder", path=registered_data_asset.id),
-            self.model_name,
+            self.published_model_name,
             self.build_reference,
         )
 
