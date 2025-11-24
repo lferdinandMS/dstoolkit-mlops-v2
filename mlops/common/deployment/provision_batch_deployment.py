@@ -12,7 +12,6 @@ from azure.ai.ml.entities import (
     ModelBatchDeploymentSettings,
     BatchRetrySettings,
     CodeConfiguration,
-    UserIdentityConfiguration,
 )
 from azure.ai.ml.constants import BatchDeploymentOutputAction
 from mlops.common.config_utils import MLOpsConfig
@@ -99,7 +98,6 @@ def main():
             code=deployment_config["score_dir"], scoring_script=deployment_config["score_file_name"]
         ),
         compute=deployment_config["batch_cluster_name"],
-        identity=UserIdentityConfiguration(),
         settings=ModelBatchDeploymentSettings(
             instance_count=deployment_config["cluster_instance_count"],
             max_concurrency_per_instance=deployment_config["max_concurrency_per_instance"],
