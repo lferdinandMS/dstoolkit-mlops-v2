@@ -15,8 +15,8 @@ import time
 import json
 
 
-def _check_role_assignment(principal_id, storage_id):
-    """Check if the principal has Storage Blob Data Contributor role on the storage account."""
+def _check_role_assignment(principal_id, scope, role_name):
+    """Check if the principal has the specified role on the given scope."""
     try:
         cmd = [
             "az",
@@ -26,9 +26,9 @@ def _check_role_assignment(principal_id, storage_id):
             "--assignee",
             principal_id,
             "--scope",
-            storage_id,
+            scope,
             "--role",
-            "Storage Blob Data Contributor",
+            role_name,
             "--output",
             "json",
         ]
@@ -43,57 +43,99 @@ def _check_role_assignment(principal_id, storage_id):
 def _assign_storage_role(client, workspace_name, compute_object):
     """Assign Storage Blob Data Contributor role to the compute identity."""
     if not (compute_object.identity and compute_object.identity.principal_id):
-        print("WARNING: Compute does not have a managed identity. Cannot assign storage role.")
-        return
+        error_msg = (
+            f"ERROR: Compute '{compute_object.name}' does not have a managed identity with principal_id. "
+            "Cannot assign storage role. This will cause authentication failures during batch deployments."
+        )
+        print(error_msg)
+        raise ValueError(error_msg)
 
     print(f"Ensuring RBAC for compute identity {compute_object.identity.principal_id}...")
     try:
         ws = client.workspaces.get(workspace_name)
         storage_id = ws.storage_account
 
+        # Assign Storage Blob Data Contributor role on storage account
         print(f"Assigning 'Storage Blob Data Contributor' role to principal {compute_object.identity.principal_id}")
         print(f"Storage account scope: {storage_id}")
 
-        # Check if role already exists
-        if _check_role_assignment(compute_object.identity.principal_id, storage_id):
-            print("Role assignment already exists and is confirmed - skipping assignment.")
-            return
+        if _check_role_assignment(compute_object.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
+            print("Storage role assignment already exists and is confirmed.")
+        else:
+            cmd = [
+                "az",
+                "role",
+                "assignment",
+                "create",
+                "--assignee",
+                compute_object.identity.principal_id,
+                "--role",
+                "Storage Blob Data Contributor",
+                "--scope",
+                storage_id,
+            ]
+            try:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print("Storage role assignment successful.")
+                print(f"Output: {result.stdout}")
+                print("Waiting 120 seconds for RBAC role assignment to propagate...")
+                time.sleep(120)
+                
+                if _check_role_assignment(compute_object.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
+                    print("Storage role assignment verified successfully.")
+                else:
+                    print("WARNING: Storage role assignment could not be verified. May need more time to propagate.")
+            except subprocess.CalledProcessError as e:
+                if "RoleAssignmentExists" in e.stderr:
+                    print("Storage role assignment already exists - this is OK.")
+                    print("Waiting 30 seconds to ensure RBAC is fully propagated...")
+                    time.sleep(30)
+                else:
+                    print(f"ERROR: Failed to assign storage role: {e.stderr}")
+                    raise Exception(f"Failed to assign Storage Blob Data Contributor role: {e.stderr}")
 
-        cmd = [
-            "az",
-            "role",
-            "assignment",
-            "create",
-            "--assignee",
-            compute_object.identity.principal_id,
-            "--role",
-            "Storage Blob Data Contributor",
-            "--scope",
-            storage_id,
-        ]
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print("Role assignment successful.")
-        print(f"Output: {result.stdout}")
-        print("Waiting 120 seconds for RBAC role assignment to propagate...")
-        time.sleep(120)
-        print("RBAC propagation wait complete.")
+        # Assign AzureML Data Scientist role on workspace for model access
+        workspace_id = f"/subscriptions/{client.subscription_id}/resourceGroups/{client.resource_group_name}/providers/Microsoft.MachineLearningServices/workspaces/{workspace_name}"
+        print(f"\nAssigning 'AzureML Data Scientist' role to principal {compute_object.identity.principal_id}")
+        print(f"Workspace scope: {workspace_id}")
         
-        # Verify the role assignment
-        if _check_role_assignment(compute_object.identity.principal_id, storage_id):
-            print("Role assignment verified successfully.")
+        if _check_role_assignment(compute_object.identity.principal_id, workspace_id, "AzureML Data Scientist"):
+            print("Workspace role assignment already exists and is confirmed.")
         else:
-            print("WARNING: Role assignment could not be verified. May need more time to propagate.")
-    except subprocess.CalledProcessError as e:
-        if "RoleAssignmentExists" in e.stderr:
-            print("Role assignment already exists - this is OK.")
-            print("Waiting 30 seconds to ensure RBAC is fully propagated...")
-            time.sleep(30)
-        else:
-            print(f"ERROR: Failed to assign role: {e.stderr}")
-            print(f"Command output: {e.stdout}")
-            raise Exception(f"Failed to assign Storage Blob Data Contributor role: {e.stderr}")
+            cmd_workspace = [
+                "az",
+                "role",
+                "assignment",
+                "create",
+                "--assignee",
+                compute_object.identity.principal_id,
+                "--role",
+                "AzureML Data Scientist",
+                "--scope",
+                workspace_id,
+            ]
+            try:
+                result = subprocess.run(cmd_workspace, check=True, capture_output=True, text=True)
+                print("Workspace role assignment successful.")
+                print(f"Output: {result.stdout}")
+                print("Waiting 120 seconds for workspace RBAC to propagate...")
+                time.sleep(120)
+                
+                if _check_role_assignment(compute_object.identity.principal_id, workspace_id, "AzureML Data Scientist"):
+                    print("Workspace role assignment verified successfully.")
+                else:
+                    print("WARNING: Workspace role assignment could not be verified. May need more time to propagate.")
+            except subprocess.CalledProcessError as e:
+                if "RoleAssignmentExists" in e.stderr:
+                    print("Workspace role assignment already exists - this is OK.")
+                    print("Waiting 30 seconds to ensure RBAC is fully propagated...")
+                    time.sleep(30)
+                else:
+                    print(f"ERROR: Failed to assign workspace role: {e.stderr}")
+                    raise Exception(f"Failed to assign AzureML Data Scientist role: {e.stderr}")
+                    
     except Exception as e:
-        print(f"ERROR: Could not assign role: {e}")
+        print(f"ERROR: Could not assign roles: {e}")
         raise
 
 
@@ -111,11 +153,22 @@ def _get_or_create_compute_target(
         compute_object = client.compute.get(cluster_name)
         print(f"Found existing compute target {cluster_name}, so using it.")
         # Ensure identity is enabled even for existing clusters
-        if not compute_object.identity:
+        if not compute_object.identity or not compute_object.identity.principal_id:
             print(f"Enabling SystemAssigned identity for {cluster_name}...")
             compute_object.identity = IdentityConfiguration(type="SystemAssigned")
-            client.compute.begin_create_or_update(compute_object).result()
+            compute_object = client.compute.begin_create_or_update(compute_object).result()
             print(f"Identity enabled for {cluster_name}.")
+            
+            # Wait a moment for identity to be fully provisioned
+            print("Waiting 30 seconds for identity provisioning...")
+            time.sleep(30)
+            
+            # Refresh compute object to get the principal_id
+            compute_object = client.compute.get(cluster_name)
+            if compute_object.identity and compute_object.identity.principal_id:
+                print(f"Identity principal ID: {compute_object.identity.principal_id}")
+            else:
+                print("WARNING: Identity was enabled but principal_id is not yet available.")
         return compute_object
     except Exception:
         print(f"{cluster_name} is not found! Trying to create a new one.")
