@@ -216,6 +216,48 @@ def get_compute(
         )
 
         _assign_storage_role(client, workspace_name, compute_object)
+        
+        # Also assign storage role to workspace identity (used by batch jobs)
+        print("\nEnsuring workspace identity has storage access...")
+        ws = client.workspaces.get(workspace_name)
+        if ws.identity and ws.identity.principal_id:
+            print(f"Workspace identity principal ID: {ws.identity.principal_id}")
+            storage_id = ws.storage_account
+            
+            if _check_role_assignment(ws.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
+                print("Workspace storage role assignment already exists and is confirmed.")
+            else:
+                print(f"Assigning 'Storage Blob Data Contributor' role to workspace identity {ws.identity.principal_id}")
+                cmd = [
+                    "az",
+                    "role",
+                    "assignment",
+                    "create",
+                    "--assignee",
+                    ws.identity.principal_id,
+                    "--role",
+                    "Storage Blob Data Contributor",
+                    "--scope",
+                    storage_id,
+                ]
+                try:
+                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    print("Workspace storage role assignment successful.")
+                    print("Waiting 120 seconds for RBAC to propagate...")
+                    time.sleep(120)
+                    
+                    if _check_role_assignment(ws.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
+                        print("Workspace storage role assignment verified successfully.")
+                    else:
+                        print("WARNING: Workspace storage role assignment could not be verified.")
+                except subprocess.CalledProcessError as e:
+                    if "RoleAssignmentExists" in e.stderr:
+                        print("Workspace storage role assignment already exists - this is OK.")
+                    else:
+                        print(f"ERROR: Failed to assign workspace storage role: {e.stderr}")
+                        raise Exception(f"Failed to assign Storage Blob Data Contributor role to workspace: {e.stderr}")
+        else:
+            print("WARNING: Workspace does not have a managed identity!")
 
         return compute_object
 
