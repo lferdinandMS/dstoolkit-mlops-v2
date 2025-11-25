@@ -182,6 +182,23 @@ def main():
     endpoint.defaults.deployment_name = deployment.name
     deploy_with_retry(ml_client, endpoint)
     print(f"The default deployment is {endpoint.defaults.deployment_name}")
+    
+    # Log identity information for troubleshooting
+    print("\n=== Identity Configuration ===")
+    deployed = ml_client.batch_deployments.get(deployment.name, deployment_config["endpoint_name"])
+    print(f"Deployment identity: {deployed.identity if hasattr(deployed, 'identity') and deployed.identity else 'Not explicitly set (uses workspace identity)'}")
+    
+    # Get workspace identity
+    workspace = ml_client.workspaces.get(config.aml_config["workspace_name"])
+    if workspace.identity and workspace.identity.principal_id:
+        print(f"Workspace identity principal ID: {workspace.identity.principal_id}")
+        print("NOTE: Batch jobs use workspace identity by default unless deployment identity is explicitly set")
+    
+    # Get compute identity
+    compute = ml_client.compute.get(deployment_config["batch_cluster_name"])
+    if compute.identity and compute.identity.principal_id:
+        print(f"Compute cluster identity principal ID: {compute.identity.principal_id}")
+    print("==============================\n")
 
 
 if __name__ == "__main__":
