@@ -223,7 +223,9 @@ def get_compute(
         if ws.identity and ws.identity.principal_id:
             print(f"Workspace identity principal ID: {ws.identity.principal_id}")
             storage_id = ws.storage_account
+            workspace_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}/providers/Microsoft.MachineLearningServices/workspaces/{workspace_name}"
             
+            # Assign Storage Blob Data Contributor to workspace identity
             if _check_role_assignment(ws.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
                 print("Workspace storage role assignment already exists and is confirmed.")
             else:
@@ -256,6 +258,40 @@ def get_compute(
                     else:
                         print(f"ERROR: Failed to assign workspace storage role: {e.stderr}")
                         raise Exception(f"Failed to assign Storage Blob Data Contributor role to workspace: {e.stderr}")
+            
+            # Assign AzureML Data Scientist role to workspace identity (for azureml:// URIs)
+            if _check_role_assignment(ws.identity.principal_id, workspace_id, "AzureML Data Scientist"):
+                print("Workspace AzureML Data Scientist role assignment already exists and is confirmed.")
+            else:
+                print(f"Assigning 'AzureML Data Scientist' role to workspace identity {ws.identity.principal_id}")
+                cmd = [
+                    "az",
+                    "role",
+                    "assignment",
+                    "create",
+                    "--assignee",
+                    ws.identity.principal_id,
+                    "--role",
+                    "AzureML Data Scientist",
+                    "--scope",
+                    workspace_id,
+                ]
+                try:
+                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    print("Workspace AzureML Data Scientist role assignment successful.")
+                    print("Waiting 120 seconds for RBAC to propagate...")
+                    time.sleep(120)
+                    
+                    if _check_role_assignment(ws.identity.principal_id, workspace_id, "AzureML Data Scientist"):
+                        print("Workspace AzureML Data Scientist role assignment verified successfully.")
+                    else:
+                        print("WARNING: Workspace AzureML Data Scientist role assignment could not be verified.")
+                except subprocess.CalledProcessError as e:
+                    if "RoleAssignmentExists" in e.stderr:
+                        print("Workspace AzureML Data Scientist role assignment already exists - this is OK.")
+                    else:
+                        print(f"ERROR: Failed to assign workspace AzureML Data Scientist role: {e.stderr}")
+                        raise Exception(f"Failed to assign AzureML Data Scientist role to workspace: {e.stderr}")
         else:
             print("WARNING: Workspace does not have a managed identity!")
 
