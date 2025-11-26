@@ -55,13 +55,16 @@ def _assign_storage_role(client, workspace_name, compute_object):
         ws = client.workspaces.get(workspace_name)
         storage_id = ws.storage_account
 
-        # Assign Storage Blob Data Contributor role on storage account
-        print(f"Assigning 'Storage Blob Data Contributor' role to principal {compute_object.identity.principal_id}")
-        print(f"Storage account scope: {storage_id}")
+        storage_scope = storage_id
 
-        if _check_role_assignment(compute_object.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
-            print("Storage role assignment already exists and is confirmed.")
-        else:
+        def _ensure_role(role_name, scope, wait_seconds=120):
+            print(f"Assigning '{role_name}' role to principal {compute_object.identity.principal_id}")
+            print(f"Scope: {scope}")
+
+            if _check_role_assignment(compute_object.identity.principal_id, scope, role_name):
+                print(f"{role_name} assignment already exists and is confirmed.")
+                return
+
             cmd = [
                 "az",
                 "role",
@@ -70,69 +73,36 @@ def _assign_storage_role(client, workspace_name, compute_object):
                 "--assignee",
                 compute_object.identity.principal_id,
                 "--role",
-                "Storage Blob Data Contributor",
+                role_name,
                 "--scope",
-                storage_id,
+                scope,
             ]
             try:
                 result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                print("Storage role assignment successful.")
-                print(f"Output: {result.stdout}")
-                print("Waiting 120 seconds for RBAC role assignment to propagate...")
-                time.sleep(120)
-                
-                if _check_role_assignment(compute_object.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
-                    print("Storage role assignment verified successfully.")
-                else:
-                    print("WARNING: Storage role assignment could not be verified. May need more time to propagate.")
+                print(f"{role_name} assignment successful.")
+                if result.stdout:
+                    print(result.stdout)
+                if wait_seconds:
+                    print(f"Waiting {wait_seconds} seconds for RBAC propagation...")
+                    time.sleep(wait_seconds)
             except subprocess.CalledProcessError as e:
                 if "RoleAssignmentExists" in e.stderr:
-                    print("Storage role assignment already exists - this is OK.")
-                    print("Waiting 30 seconds to ensure RBAC is fully propagated...")
-                    time.sleep(30)
+                    print(f"{role_name} assignment already exists - this is OK.")
+                    if wait_seconds:
+                        print("Waiting 30 seconds to ensure RBAC is fully propagated...")
+                        time.sleep(30)
                 else:
-                    print(f"ERROR: Failed to assign storage role: {e.stderr}")
-                    raise Exception(f"Failed to assign Storage Blob Data Contributor role: {e.stderr}")
+                    raise Exception(f"Failed to assign {role_name} role: {e.stderr}")
+
+        # Assign storage-related roles needed for batch orchestration
+        _ensure_role("Storage Blob Data Contributor", storage_scope)
+        _ensure_role("Storage Table Data Contributor", storage_scope, wait_seconds=30)
+        _ensure_role("Storage Queue Data Contributor", storage_scope, wait_seconds=30)
 
         # Assign AzureML Data Scientist role on workspace for model access
         workspace_id = f"/subscriptions/{client.subscription_id}/resourceGroups/{client.resource_group_name}/providers/Microsoft.MachineLearningServices/workspaces/{workspace_name}"
-        print(f"\nAssigning 'AzureML Data Scientist' role to principal {compute_object.identity.principal_id}")
-        print(f"Workspace scope: {workspace_id}")
-        
-        if _check_role_assignment(compute_object.identity.principal_id, workspace_id, "AzureML Data Scientist"):
-            print("Workspace role assignment already exists and is confirmed.")
-        else:
-            cmd_workspace = [
-                "az",
-                "role",
-                "assignment",
-                "create",
-                "--assignee",
-                compute_object.identity.principal_id,
-                "--role",
-                "AzureML Data Scientist",
-                "--scope",
-                workspace_id,
-            ]
-            try:
-                result = subprocess.run(cmd_workspace, check=True, capture_output=True, text=True)
-                print("Workspace role assignment successful.")
-                print(f"Output: {result.stdout}")
-                print("Waiting 120 seconds for workspace RBAC to propagate...")
-                time.sleep(120)
-                
-                if _check_role_assignment(compute_object.identity.principal_id, workspace_id, "AzureML Data Scientist"):
-                    print("Workspace role assignment verified successfully.")
-                else:
-                    print("WARNING: Workspace role assignment could not be verified. May need more time to propagate.")
-            except subprocess.CalledProcessError as e:
-                if "RoleAssignmentExists" in e.stderr:
-                    print("Workspace role assignment already exists - this is OK.")
-                    print("Waiting 30 seconds to ensure RBAC is fully propagated...")
-                    time.sleep(30)
-                else:
-                    print(f"ERROR: Failed to assign workspace role: {e.stderr}")
-                    raise Exception(f"Failed to assign AzureML Data Scientist role: {e.stderr}")
+        print("")
+        _ensure_role("AzureML Data Scientist", workspace_id)
                     
     except Exception as e:
         print(f"ERROR: Could not assign roles: {e}")
