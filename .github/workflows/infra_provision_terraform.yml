@@ -20,6 +20,12 @@ env:
   TRAINING_CLUSTER_VM_SIZE: ${{ vars.training_cluster_vm_size }}
   BATCH_CLUSTER_NAME: ${{ vars.batch_cluster_name }}
   BATCH_CLUSTER_VM_SIZE: ${{ vars.batch_cluster_vm_size }}
+  TRAINING_CLUSTER_MIN_NODES: ${{ vars.training_cluster_min_nodes }}
+  TRAINING_CLUSTER_MAX_NODES: ${{ vars.training_cluster_max_nodes }}
+  TRAINING_CLUSTER_IDLE_SECONDS: ${{ vars.training_cluster_idle_seconds }}
+  BATCH_CLUSTER_MIN_NODES: ${{ vars.batch_cluster_min_nodes }}
+  BATCH_CLUSTER_MAX_NODES: ${{ vars.batch_cluster_max_nodes }}
+  BATCH_CLUSTER_IDLE_SECONDS: ${{ vars.batch_cluster_idle_seconds }}  
 
 jobs:
   terraform:
@@ -61,6 +67,12 @@ jobs:
           echo '${{ env.TRAINING_CLUSTER_VM_SIZE }}'
           echo '${{ env.BATCH_CLUSTER_NAME }}'
           echo '${{ env.BATCH_CLUSTER_VM_SIZE }}'
+          echo '${{ env.TRAINING_CLUSTER_MIN_NODES }}'
+          echo '${{ env.TRAINING_CLUSTER_MAX_NODES }}'
+          echo '${{ env.TRAINING_CLUSTER_IDLE_SECONDS }}'
+          echo '${{ env.BATCH_CLUSTER_MIN_NODES }}'
+          echo '${{ env.BATCH_CLUSTER_MAX_NODES }}'
+          echo '${{ env.BATCH_CLUSTER_IDLE_SECONDS }}'          
 
       - uses: cschleiden/replace-tokens@v1
         with:
@@ -81,6 +93,12 @@ jobs:
           TRAINING_CLUSTER_VM_SIZE: '${{ env.TRAINING_CLUSTER_VM_SIZE }}'
           BATCH_CLUSTER_NAME: '${{ env.BATCH_CLUSTER_NAME }}'
           BATCH_CLUSTER_VM_SIZE: '${{ env.BATCH_CLUSTER_VM_SIZE }}'
+          TRAINING_CLUSTER_MIN_NODES: '${{ env.TRAINING_CLUSTER_MIN_NODES }}'
+          TRAINING_CLUSTER_MAX_NODES: '${{ env.TRAINING_CLUSTER_MAX_NODES }}'
+          TRAINING_CLUSTER_IDLE_SECONDS: '${{ env.TRAINING_CLUSTER_IDLE_SECONDS }}'
+          BATCH_CLUSTER_MIN_NODES: '${{ env.BATCH_CLUSTER_MIN_NODES }}'
+          BATCH_CLUSTER_MAX_NODES: '${{ env.BATCH_CLUSTER_MAX_NODES }}'
+          BATCH_CLUSTER_IDLE_SECONDS: '${{ env.BATCH_CLUSTER_IDLE_SECONDS }}'
 
       - name: Setup Terraform state storage
         run: |
