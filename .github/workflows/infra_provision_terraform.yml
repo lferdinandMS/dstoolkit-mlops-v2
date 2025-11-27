@@ -157,6 +157,61 @@ jobs:
             sleep 45
           fi
 
+      - name: Remove duplicate AML role assignments
+        run: |
+          set -euo pipefail
+
+          STORAGE_SCOPE=$(az storage account show --name '${{ env.STORAGE_ACCT_NAME }}' --resource-group '${{ env.RESOURCE_GROUP_NAME }}' --query id -o tsv)
+          WORKSPACE_SCOPE=$(az ml workspace show --name '${{ env.WORKSPACE_NAME }}' --resource-group '${{ env.RESOURCE_GROUP_NAME }}' --query id -o tsv 2>/dev/null || echo "")
+
+          WS_PRINCIPAL_ID=$(az resource show -n '${{ env.WORKSPACE_NAME }}' -g '${{ env.RESOURCE_GROUP_NAME }}' --resource-type Microsoft.MachineLearningServices/workspaces --query identity.principalId -o tsv 2>/dev/null || echo "")
+          TRAINING_PRINCIPAL_ID=$(az ml compute show --name '${{ env.TRAINING_CLUSTER_NAME }}' --workspace-name '${{ env.WORKSPACE_NAME }}' --resource-group '${{ env.RESOURCE_GROUP_NAME }}' --query identity.principalId -o tsv 2>/dev/null || echo "")
+          BATCH_PRINCIPAL_ID=$(az ml compute show --name '${{ env.BATCH_CLUSTER_NAME }}' --workspace-name '${{ env.WORKSPACE_NAME }}' --resource-group '${{ env.RESOURCE_GROUP_NAME }}' --query identity.principalId -o tsv 2>/dev/null || echo "")
+
+          delete_assignment() {
+            local scope="$1"
+            local role="$2"
+            local principal="$3"
+            local label="$4"
+
+            if [ -z "$principal" ] || [ "$principal" = "null" ]; then
+              echo "[$label] principal id missing, skipping"
+              return
+            fi
+
+            local existing
+            existing=$(az role assignment list --scope "$scope" --assignee "$principal" --role "$role" --query '[0].id' -o tsv)
+
+            if [ -n "$existing" ]; then
+              echo "[$label] removing existing assignment $existing"
+              az role assignment delete --ids "$existing"
+            else
+              echo "[$label] no existing assignment found"
+            fi
+          }
+
+          if [ -n "$STORAGE_SCOPE" ]; then
+            delete_assignment "$STORAGE_SCOPE" "Storage Blob Data Contributor" "$WS_PRINCIPAL_ID" "workspace-blob"
+            delete_assignment "$STORAGE_SCOPE" "Storage Table Data Contributor" "$WS_PRINCIPAL_ID" "workspace-table"
+            delete_assignment "$STORAGE_SCOPE" "Storage Queue Data Contributor" "$WS_PRINCIPAL_ID" "workspace-queue"
+
+            delete_assignment "$STORAGE_SCOPE" "Storage Blob Data Contributor" "$TRAINING_PRINCIPAL_ID" "training-blob"
+            delete_assignment "$STORAGE_SCOPE" "Storage Table Data Contributor" "$TRAINING_PRINCIPAL_ID" "training-table"
+            delete_assignment "$STORAGE_SCOPE" "Storage Queue Data Contributor" "$TRAINING_PRINCIPAL_ID" "training-queue"
+
+            delete_assignment "$STORAGE_SCOPE" "Storage Blob Data Contributor" "$BATCH_PRINCIPAL_ID" "batch-blob"
+            delete_assignment "$STORAGE_SCOPE" "Storage Table Data Contributor" "$BATCH_PRINCIPAL_ID" "batch-table"
+            delete_assignment "$STORAGE_SCOPE" "Storage Queue Data Contributor" "$BATCH_PRINCIPAL_ID" "batch-queue"
+          fi
+
+          if [ -n "$WORKSPACE_SCOPE" ]; then
+            delete_assignment "$WORKSPACE_SCOPE" "AzureML Data Scientist" "$WS_PRINCIPAL_ID" "workspace-ml-ds"
+            delete_assignment "$WORKSPACE_SCOPE" "AzureML Data Scientist" "$TRAINING_PRINCIPAL_ID" "training-ml-ds"
+            delete_assignment "$WORKSPACE_SCOPE" "AzureML Data Scientist" "$BATCH_PRINCIPAL_ID" "batch-ml-ds"
+          fi
+
+          echo "Duplicate role assignment cleanup complete"
+
       - name: Terraform Install
         uses: hashicorp/setup-terraform@v3
         with:
