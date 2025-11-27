@@ -44,7 +44,55 @@ def wait_for_endpoint_ready(ml_client, endpoint_name, max_wait=600):
     raise TimeoutError(f"Endpoint not ready after {max_wait} seconds")
 
 
-def deploy_with_retry(ml_client, deployment, max_retries=3, initial_delay=60):
+def wait_for_deployment_ready(ml_client, endpoint_name, deployment_name, max_wait=900, poll_interval=30):
+    """Ensure the existing deployment finishes any in-flight operation before updating."""
+    print(
+        f"Checking if deployment {deployment_name} on endpoint {endpoint_name} is idle before updating..."
+    )
+    start_time = time.time()
+
+    while time.time() - start_time < max_wait:
+        try:
+            deployment = ml_client.online_deployments.get(
+                name=deployment_name, endpoint_name=endpoint_name
+            )
+            state = getattr(deployment, "provisioning_state", None)
+
+            if not state or state == "Succeeded":
+                print(
+                    f"Deployment {deployment_name} is in '{state or 'Unknown'}' state and ready for updates"
+                )
+                return True
+            if state in ["Failed", "Canceled"]:
+                raise Exception(
+                    f"Deployment {deployment_name} in {state} state - manual intervention required"
+                )
+
+            print(
+                f"Deployment {deployment_name} still provisioning ({state}). Waiting {poll_interval} seconds before re-check..."
+            )
+            time.sleep(poll_interval)
+        except Exception as e:
+            message = str(e)
+            if "resourcenotfound" in message.lower() or "not found" in message.lower():
+                print(
+                    f"Deployment {deployment_name} does not exist yet - safe to create a new deployment"
+                )
+                return True
+            raise
+
+    raise TimeoutError(
+        f"Deployment {deployment_name} still not ready after {max_wait} seconds"
+    )
+
+
+def deploy_with_retry(
+    ml_client,
+    deployment,
+    max_retries=3,
+    initial_delay=60,
+    wait_if_conflict=None,
+):
     """Deploy with retry logic for concurrent operation conflicts."""
     for attempt in range(max_retries):
         try:
@@ -54,11 +102,20 @@ def deploy_with_retry(ml_client, deployment, max_retries=3, initial_delay=60):
             print("Deployment completed successfully")
             return result
         except ResourceExistsError as e:
-            if "Already running method" in str(e) and attempt < max_retries - 1:
-                delay = initial_delay * (2 ** attempt)  # Exponential backoff
-                print(f"Conflict detected: Another operation is in progress.")
-                print(f"Waiting {delay} seconds before retry {attempt + 2}/{max_retries}...")
-                time.sleep(delay)
+            message = str(e)
+            if "Already running method" in message and attempt < max_retries - 1:
+                print("Conflict detected: Another operation is in progress.")
+                if wait_if_conflict:
+                    print(
+                        "Waiting for existing deployment operation to finish before retrying..."
+                    )
+                    wait_if_conflict()
+                else:
+                    delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                    print(
+                        f"Waiting {delay} seconds before retry {attempt + 2}/{max_retries}..."
+                    )
+                    time.sleep(delay)
             else:
                 print(f"Deployment failed after {attempt + 1} attempts")
                 raise
@@ -146,11 +203,24 @@ def main():
         },
     )
 
-    # Wait for endpoint to be ready before deploying
+    # Wait for endpoint and deployment to be idle before deploying
     wait_for_endpoint_ready(ml_client, deployment_config["endpoint_name"])
-    
+    wait_for_deployment_ready(
+        ml_client,
+        deployment_config["endpoint_name"],
+        deployment_config["deployment_name"],
+    )
+
     # Deploy with retry logic
-    deploy_with_retry(ml_client, blue_deployment)
+    deploy_with_retry(
+        ml_client,
+        blue_deployment,
+        wait_if_conflict=lambda: wait_for_deployment_ready(
+            ml_client,
+            deployment_config["endpoint_name"],
+            deployment_config["deployment_name"],
+        ),
+    )
 
 
 if __name__ == "__main__":
