@@ -16,12 +16,12 @@ def wait_for_endpoint_ready(ml_client, endpoint_name, max_wait=600):
     """Wait for endpoint to be ready for operations."""
     print(f"Checking if endpoint {endpoint_name} is ready for operations...")
     start_time = time.time()
-    
+
     while time.time() - start_time < max_wait:
         try:
             endpoint = ml_client.online_endpoints.get(endpoint_name)
             print(f"Endpoint state: {endpoint.provisioning_state}")
-            
+
             if endpoint.provisioning_state == "Succeeded":
                 print(f"Endpoint {endpoint_name} is ready")
                 return True
@@ -35,7 +35,7 @@ def wait_for_endpoint_ready(ml_client, endpoint_name, max_wait=600):
                 print(f"Endpoint {endpoint_name} does not exist yet - ready to create")
                 return True
             raise
-    
+
     raise TimeoutError(f"Endpoint not ready after {max_wait} seconds")
 
 
@@ -52,7 +52,7 @@ def create_with_retry(ml_client, endpoint, max_retries=3, initial_delay=60):
             error_msg = str(e).lower()
             if ("conflict" in error_msg or "already running method" in error_msg) and attempt < max_retries - 1:
                 delay = initial_delay * (2 ** attempt)  # Exponential backoff
-                print(f"Conflict detected: Another operation is in progress on endpoint.")
+                print("Conflict detected: Another operation is in progress on endpoint.")
                 print(f"Waiting {delay} seconds before retry {attempt + 2}/{max_retries}...")
                 time.sleep(delay)
             else:
@@ -61,7 +61,7 @@ def create_with_retry(ml_client, endpoint, max_retries=3, initial_delay=60):
         except Exception as e:
             print(f"Unexpected error during endpoint creation: {str(e)}")
             raise
-    
+
     raise Exception("Endpoint creation failed after all retry attempts")
 
 
@@ -109,7 +109,7 @@ def main():
 
     # Wait for any existing operations to complete
     wait_for_endpoint_ready(ml_client, deployment_config["endpoint_name"])
-    
+
     # Create endpoint with retry logic
     create_with_retry(ml_client, endpoint)
 

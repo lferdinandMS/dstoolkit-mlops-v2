@@ -25,12 +25,12 @@ def wait_for_endpoint_ready(ml_client, endpoint_name, max_wait=600):
     """Wait for endpoint to be ready for operations."""
     print(f"Checking if endpoint {endpoint_name} is ready for operations...")
     start_time = time.time()
-    
+
     while time.time() - start_time < max_wait:
         try:
             endpoint = ml_client.batch_endpoints.get(endpoint_name)
             print(f"Endpoint state: {endpoint.provisioning_state}")
-            
+
             if endpoint.provisioning_state == "Succeeded":
                 print(f"Endpoint {endpoint_name} is ready")
                 return True
@@ -44,7 +44,7 @@ def wait_for_endpoint_ready(ml_client, endpoint_name, max_wait=600):
                 print(f"Endpoint {endpoint_name} does not exist yet - ready to create")
                 return True
             raise
-    
+
     raise TimeoutError(f"Endpoint not ready after {max_wait} seconds")
 
 
@@ -60,7 +60,7 @@ def deploy_with_retry(ml_client, deployment, max_retries=3, initial_delay=60):
         except ResourceExistsError as e:
             if "Already running method" in str(e) and attempt < max_retries - 1:
                 delay = initial_delay * (2 ** attempt)  # Exponential backoff
-                print(f"Conflict detected: Another operation is in progress.")
+                print("Conflict detected: Another operation is in progress.")
                 print(f"Waiting {delay} seconds before retry {attempt + 2}/{max_retries}...")
                 time.sleep(delay)
             else:
@@ -69,7 +69,7 @@ def deploy_with_retry(ml_client, deployment, max_retries=3, initial_delay=60):
         except Exception as e:
             print(f"Unexpected error during deployment: {str(e)}")
             raise
-    
+
     raise Exception("Deployment failed after all retry attempts")
 
 
@@ -106,20 +106,22 @@ def main():
     deployment_config = config.get_deployment_config(deployment_name=f"{model_type}_batch")
 
     published_model_name = generate_model_name(model_type)
-    
+
     print(f"Looking for model: {published_model_name}")
 
     try:
         model_refs = ml_client.models.list(published_model_name)
         model_list = list(model_refs)
-        
+
         if not model_list:
             print(f"ERROR: No models found with name '{published_model_name}'")
             print("Available models:")
             for model in ml_client.models.list():
                 print(f"  - {model.name} (version {model.version})")
-            raise ValueError(f"Model '{published_model_name}' not found. Please check model name and ensure training completed successfully.")
-        
+            raise ValueError(f"Model '{published_model_name}' not found. "
+                             "Please check model name "
+                             "and ensure training completed successfully.")
+
         latest_version = max(model.version for model in model_list)
         print(f"Found model version: {latest_version}")
         model = ml_client.models.get(published_model_name, latest_version)
@@ -172,7 +174,7 @@ def main():
 
     # Wait for endpoint to be ready before deploying
     wait_for_endpoint_ready(ml_client, deployment_config["endpoint_name"])
-    
+
     # Deploy with retry logic
     deploy_with_retry(ml_client, deployment)
 
@@ -182,18 +184,25 @@ def main():
     endpoint.defaults.deployment_name = deployment.name
     deploy_with_retry(ml_client, endpoint)
     print(f"The default deployment is {endpoint.defaults.deployment_name}")
-    
+
     # Log identity information for troubleshooting
     print("\n=== Identity Configuration ===")
-    deployed = ml_client.batch_deployments.get(deployment.name, deployment_config["endpoint_name"])
-    print(f"Deployment identity: {deployed.identity if hasattr(deployed, 'identity') and deployed.identity else 'Not explicitly set (uses workspace identity)'}")
-    
+    deployed = ml_client.batch_deployments.get(
+        deployment.name, deployment_config["endpoint_name"]
+    )
+    deployment_identity = (
+        deployed.identity
+        if hasattr(deployed, "identity") and deployed.identity
+        else "Not explicitly set (uses workspace identity)"
+    )
+    print(f"Deployment identity: {deployment_identity}")
+
     # Get workspace identity
     workspace = ml_client.workspaces.get(config.aml_config["workspace_name"])
     if workspace.identity and workspace.identity.principal_id:
         print(f"Workspace identity principal ID: {workspace.identity.principal_id}")
         print("NOTE: Batch jobs use workspace identity by default unless deployment identity is explicitly set")
-    
+
     # Get compute identity
     compute = ml_client.compute.get(deployment_config["batch_cluster_name"])
     if compute.identity and compute.identity.principal_id:

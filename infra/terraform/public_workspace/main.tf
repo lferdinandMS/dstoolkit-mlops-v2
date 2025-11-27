@@ -62,4 +62,112 @@ resource "azurerm_container_registry" "acr" {
   # For production, consider enabling managed_network with appropriate isolation_mode
 }
 
-# Role assignments are handled idempotently in the CI workflow to avoid conflicts
+# Role assignments ensure workspace and compute identities have the data-plane access they need
+
+resource "azurerm_machine_learning_compute_cluster" "training" {
+  name                           = var.training_cluster_name
+  location                       = var.location
+  machine_learning_workspace_id  = azurerm_machine_learning_workspace.adl_mlw.id
+  vm_size                        = var.training_cluster_vm_size
+  vm_priority                    = "Dedicated"
+
+  scale_settings {
+    min_node_count                = tonumber(var.training_cluster_min_nodes)
+    max_node_count                = tonumber(var.training_cluster_max_nodes)
+    scale_down_nodes_after_idle_duration = "PT${tonumber(var.training_cluster_idle_seconds)}S"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+resource "azurerm_machine_learning_compute_cluster" "batch" {
+  name                           = var.batch_cluster_name
+  location                       = var.location
+  machine_learning_workspace_id  = azurerm_machine_learning_workspace.adl_mlw.id
+  vm_size                        = var.batch_cluster_vm_size
+  vm_priority                    = "Dedicated"
+
+  scale_settings {
+    min_node_count                = tonumber(var.batch_cluster_min_nodes)
+    max_node_count                = tonumber(var.batch_cluster_max_nodes)
+    scale_down_nodes_after_idle_duration = "PT${tonumber(var.batch_cluster_idle_seconds)}S"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+resource "azurerm_role_assignment" "workspace_blob" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "workspace_table" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "workspace_queue" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "workspace_data_scientist" {
+  scope                = azurerm_machine_learning_workspace.adl_mlw.id
+  role_definition_name = "AzureML Data Scientist"
+  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "training_blob" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_machine_learning_compute_cluster.training.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "training_table" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = azurerm_machine_learning_compute_cluster.training.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "training_queue" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = azurerm_machine_learning_compute_cluster.training.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "training_data_scientist" {
+  scope                = azurerm_machine_learning_workspace.adl_mlw.id
+  role_definition_name = "AzureML Data Scientist"
+  principal_id         = azurerm_machine_learning_compute_cluster.training.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "batch_blob" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_machine_learning_compute_cluster.batch.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "batch_table" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = azurerm_machine_learning_compute_cluster.batch.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "batch_queue" {
+  scope                = azurerm_storage_account.stacc.id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = azurerm_machine_learning_compute_cluster.batch.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "batch_data_scientist" {
+  scope                = azurerm_machine_learning_workspace.adl_mlw.id
+  role_definition_name = "AzureML Data Scientist"
+  principal_id         = azurerm_machine_learning_compute_cluster.batch.identity[0].principal_id
+}

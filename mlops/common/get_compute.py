@@ -100,10 +100,15 @@ def _assign_storage_role(client, workspace_name, compute_object):
         _ensure_role("Storage Queue Data Contributor", storage_scope, wait_seconds=30)
 
         # Assign AzureML Data Scientist role on workspace for model access
-        workspace_id = f"/subscriptions/{client.subscription_id}/resourceGroups/{client.resource_group_name}/providers/Microsoft.MachineLearningServices/workspaces/{workspace_name}"
+        workspace_id = (
+            f"/subscriptions/{client.subscription_id}/"
+            f"resourceGroups/{client.resource_group_name}/"
+            "providers/Microsoft.MachineLearningServices/workspaces/"
+            f"{workspace_name}"
+        )
         print("")
         _ensure_role("AzureML Data Scientist", workspace_id)
-                    
+
     except Exception as e:
         print(f"ERROR: Could not assign roles: {e}")
         raise
@@ -128,11 +133,11 @@ def _get_or_create_compute_target(
             compute_object.identity = IdentityConfiguration(type="SystemAssigned")
             compute_object = client.compute.begin_create_or_update(compute_object).result()
             print(f"Identity enabled for {cluster_name}.")
-            
+
             # Wait a moment for identity to be fully provisioned
             print("Waiting 30 seconds for identity provisioning...")
             time.sleep(30)
-            
+
             # Refresh compute object to get the principal_id
             compute_object = client.compute.get(cluster_name)
             if compute_object.identity and compute_object.identity.principal_id:
@@ -186,20 +191,26 @@ def get_compute(
         )
 
         _assign_storage_role(client, workspace_name, compute_object)
-        
+
         # Also assign storage role to workspace identity (used by batch jobs)
         print("\nEnsuring workspace identity has storage access...")
         ws = client.workspaces.get(workspace_name)
         if ws.identity and ws.identity.principal_id:
             print(f"Workspace identity principal ID: {ws.identity.principal_id}")
             storage_id = ws.storage_account
-            workspace_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}/providers/Microsoft.MachineLearningServices/workspaces/{workspace_name}"
-            
+            workspace_id = (
+                f"/subscriptions/{subscription_id}/"
+                f"resourceGroups/{resource_group_name}/"
+                "providers/Microsoft.MachineLearningServices/workspaces/"
+                f"{workspace_name}"
+            )
+
             # Assign Storage Blob Data Contributor to workspace identity
             if _check_role_assignment(ws.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
                 print("Workspace storage role assignment already exists and is confirmed.")
             else:
-                print(f"Assigning 'Storage Blob Data Contributor' role to workspace identity {ws.identity.principal_id}")
+                print("Assigning 'Storage Blob Data Contributor' role to workspace identity "
+                      f"{ws.identity.principal_id}")
                 cmd = [
                     "az",
                     "role",
@@ -213,11 +224,11 @@ def get_compute(
                     storage_id,
                 ]
                 try:
-                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    # result = subprocess.run(cmd, check=True, capture_output=True, text=True)
                     print("Workspace storage role assignment successful.")
                     print("Waiting 120 seconds for RBAC to propagate...")
                     time.sleep(120)
-                    
+
                     if _check_role_assignment(ws.identity.principal_id, storage_id, "Storage Blob Data Contributor"):
                         print("Workspace storage role assignment verified successfully.")
                     else:
@@ -227,13 +238,15 @@ def get_compute(
                         print("Workspace storage role assignment already exists - this is OK.")
                     else:
                         print(f"ERROR: Failed to assign workspace storage role: {e.stderr}")
-                        raise Exception(f"Failed to assign Storage Blob Data Contributor role to workspace: {e.stderr}")
-            
+                        raise Exception("Failed to assign Storage Blob Data Contributor role to "
+                                        f"workspace: {e.stderr}")
+
             # Assign Storage Table Data Contributor to workspace identity (for batch parallel run)
             if _check_role_assignment(ws.identity.principal_id, storage_id, "Storage Table Data Contributor"):
                 print("Workspace Storage Table Data Contributor role assignment already exists and is confirmed.")
             else:
-                print(f"Assigning 'Storage Table Data Contributor' role to workspace identity {ws.identity.principal_id}")
+                print(f"Assigning 'Storage Table Data Contributor' role to workspace identity "
+                      f"{ws.identity.principal_id}")
                 cmd = [
                     "az",
                     "role",
@@ -247,14 +260,16 @@ def get_compute(
                     storage_id,
                 ]
                 try:
-                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    # result = subprocess.run(cmd, check=True, capture_output=True, text=True)
                     print("Workspace Storage Table Data Contributor role assignment successful.")
                 except subprocess.CalledProcessError as e:
                     if "RoleAssignmentExists" in e.stderr:
-                        print("Workspace Storage Table Data Contributor role assignment already exists - this is OK.")
+                        print("Workspace Storage Table Data Contributor role assignment already "
+                              "exists - this is OK.")
                     else:
                         print(f"ERROR: Failed to assign workspace Storage Table Data Contributor role: {e.stderr}")
-                        raise Exception(f"Failed to assign Storage Table Data Contributor role to workspace: {e.stderr}")
+                        raise Exception(f"Failed to assign Storage Table Data Contributor role to "
+                                        f"workspace: {e.stderr}")
             
             # Assign Storage Queue Data Contributor to workspace identity (for batch parallel run)
             if _check_role_assignment(ws.identity.principal_id, storage_id, "Storage Queue Data Contributor"):
@@ -274,15 +289,17 @@ def get_compute(
                     storage_id,
                 ]
                 try:
-                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    # result = subprocess.run(cmd, check=True, capture_output=True, text=True)
                     print("Workspace Storage Queue Data Contributor role assignment successful.")
                 except subprocess.CalledProcessError as e:
                     if "RoleAssignmentExists" in e.stderr:
-                        print("Workspace Storage Queue Data Contributor role assignment already exists - this is OK.")
+                        print("Workspace Storage Queue Data Contributor role assignment already exists - "
+                              "this is OK.")
                     else:
                         print(f"ERROR: Failed to assign workspace Storage Queue Data Contributor role: {e.stderr}")
-                        raise Exception(f"Failed to assign Storage Queue Data Contributor role to workspace: {e.stderr}")
-            
+                        raise Exception(f"Failed to assign Storage Queue Data Contributor role to "
+                                        f"workspace: {e.stderr}")
+
             # Assign AzureML Data Scientist role to workspace identity (for azureml:// URIs)
             if _check_role_assignment(ws.identity.principal_id, workspace_id, "AzureML Data Scientist"):
                 print("Workspace AzureML Data Scientist role assignment already exists and is confirmed.")
@@ -301,11 +318,11 @@ def get_compute(
                     workspace_id,
                 ]
                 try:
-                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    # result = subprocess.run(cmd, check=True, capture_output=True, text=True)
                     print("Workspace AzureML Data Scientist role assignment successful.")
                     print("Waiting 120 seconds for RBAC to propagate...")
                     time.sleep(120)
-                    
+
                     if _check_role_assignment(ws.identity.principal_id, workspace_id, "AzureML Data Scientist"):
                         print("Workspace AzureML Data Scientist role assignment verified successfully.")
                     else:

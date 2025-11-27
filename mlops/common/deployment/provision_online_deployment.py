@@ -21,12 +21,12 @@ def wait_for_endpoint_ready(ml_client, endpoint_name, max_wait=600):
     """Wait for endpoint to be ready for operations."""
     print(f"Checking if endpoint {endpoint_name} is ready for operations...")
     start_time = time.time()
-    
+
     while time.time() - start_time < max_wait:
         try:
             endpoint = ml_client.online_endpoints.get(endpoint_name)
             print(f"Endpoint state: {endpoint.provisioning_state}")
-            
+
             if endpoint.provisioning_state == "Succeeded":
                 print(f"Endpoint {endpoint_name} is ready")
                 return True
@@ -40,7 +40,7 @@ def wait_for_endpoint_ready(ml_client, endpoint_name, max_wait=600):
                 print(f"Endpoint {endpoint_name} does not exist yet - ready to create")
                 return True
             raise
-    
+
     raise TimeoutError(f"Endpoint not ready after {max_wait} seconds")
 
 
@@ -69,7 +69,8 @@ def wait_for_deployment_ready(ml_client, endpoint_name, deployment_name, max_wai
                 )
 
             print(
-                f"Deployment {deployment_name} still provisioning ({state}). Waiting {poll_interval} seconds before re-check..."
+                f"Deployment {deployment_name} still provisioning ({state}). "
+                f"Waiting {poll_interval} seconds before re-check..."
             )
             time.sleep(poll_interval)
         except Exception as e:
@@ -122,7 +123,7 @@ def deploy_with_retry(
         except Exception as e:
             print(f"Unexpected error during deployment: {str(e)}")
             raise
-    
+
     raise Exception("Deployment failed after all retry attempts")
 
 
@@ -159,20 +160,23 @@ def main():
     deployment_config = config.get_deployment_config(deployment_name=f"{model_type}_online")
 
     published_model_name = generate_model_name(model_type)
-    
+
     print(f"Looking for model: {published_model_name}")
 
     try:
         model_refs = ml_client.models.list(published_model_name)
         model_list = list(model_refs)
-        
+
         if not model_list:
             print(f"ERROR: No models found with name '{published_model_name}'")
             print("Available models:")
             for model in ml_client.models.list():
                 print(f"  - {model.name} (version {model.version})")
-            raise ValueError(f"Model '{published_model_name}' not found. Please check model name and ensure training completed successfully.")
-        
+            raise ValueError(
+                f"Model '{published_model_name}' not found. "
+                "Please check model name and ensure training completed successfully."
+            )
+
         latest_version = max(model.version for model in model_list)
         print(f"Found model version: {latest_version}")
         model = ml_client.models.get(published_model_name, latest_version)

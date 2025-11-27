@@ -64,3 +64,53 @@ variable "service_principal_object_id" {
   type        = string
   description = "The Object ID of the service principal used for deployments"
 }
+
+variable "training_cluster_name" {
+  type    = string
+  default = "cpucluster"
+}
+
+variable "training_cluster_vm_size" {
+  type    = string
+  default = "STANDARD_DS3_V2"
+}
+
+variable "training_cluster_min_nodes" {
+  type    = number
+  default = 0
+}
+
+variable "training_cluster_max_nodes" {
+  type    = number
+  default = 4
+}
+
+variable "training_cluster_idle_seconds" {
+  type    = number
+  default = 600
+}
+
+variable "batch_cluster_name" {
+  type    = string
+  default = "batchcluster"
+}
+
+variable "batch_cluster_vm_size" {
+  type    = string
+  default = "STANDARD_DS3_V2"
+}
+
+variable "batch_cluster_min_nodes" {
+  type    = number
+  default = 0
+}
+
+variable "batch_cluster_max_nodes" {
+  type    = number
+  default = 4
+}
+
+variable "batch_cluster_idle_seconds" {
+  type    = number
+  default = 600
+}
