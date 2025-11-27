@@ -1,4 +1,4 @@
-"""This module is designed to register machine learning models with MLflow."""
+"""This module is designed for registering machine learning models in MLflow."""
 import mlflow
 import argparse
 import json
@@ -16,6 +16,17 @@ def main(model_metadata, model_name, score_report, build_reference):
       build_reference (str): a build id
     """
     try:
+        # Print package versions for debugging
+        print("=" * 50)
+        print("PACKAGE VERSIONS:")
+        try:
+            import pkg_resources
+            print(f"mlflow: {pkg_resources.get_distribution('mlflow').version}")
+            print(f"azureml-mlflow: {pkg_resources.get_distribution('azureml-mlflow').version}")
+        except Exception as e:
+            print(f"Could not get package versions: {e}")
+        print("=" * 50)
+
         run_file = open(args.model_metadata)
         model_metadata = json.load(run_file)
         run_uri = model_metadata["run_uri"]
@@ -25,6 +36,9 @@ def main(model_metadata, model_name, score_report, build_reference):
         cod = score_data["cod"]
         mse = score_data["mse"]
         coff = score_data["coff"]
+
+        # Ensure MLflow is properly configured for Azure ML
+        mlflow.set_tracking_uri(mlflow.get_tracking_uri())
 
         model_version = mlflow.register_model(run_uri, model_name)
 

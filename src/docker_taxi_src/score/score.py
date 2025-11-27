@@ -1,11 +1,13 @@
 """
-This module provides functionality for scoring a machine learning model.
+This module is designed for scoring a machine learning model by comparing its predictions against actual values.
 
-It allows users to load a trained model and a dataset containing actual and predicted values,
-then evaluates the model's performance by calculating metrics such as Mean Squared Error (MSE)
-and the Coefficient of Determination (R^2). The module also supports logging these metrics
-using MLflow and outputs a score report.
+The module accomplishes several key tasks:
+- It loads test data and a machine learning model.
+- It calculates scoring metrics such as mean squared error (MSE) and the coefficient of determination (R^2).
+- It logs these metrics using mlflow.
+- It outputs a scoring report with key model performance metrics.
 """
+
 import argparse
 import pandas as pd
 import os
@@ -59,6 +61,8 @@ def main(predictions, model, score_report):
 
 
 # Print the results of scoring the predictions against actual values in the test data
+
+
 def write_results(model, predictions, test_data, score_report):
     """
     Calculate and log the model's mean squared error and coefficient of determination.

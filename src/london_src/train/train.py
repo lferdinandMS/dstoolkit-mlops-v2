@@ -1,10 +1,12 @@
 """
-This module is responsible for training a machine learning model using the provided dataset.
+This module is designed to train a machine learning model.
 
-The module uses Linear Regression from scikit-learn for model training and leverages
-MLflow for experiment tracking. The data is split into training and test sets, with the
-model being trained on the training set. The test data and model outputs are saved for
-further evaluation and deployment.
+The module performs the following key steps:
+1. Reading and combining data from specified training data files.
+2. Splitting the combined data into training and testing datasets.
+3. Training a Linear Regression model using the training dataset.
+4. Using MLflow for logging and tracking experiments.
+5. Saving the trained model and its metadata to specified paths.
 """
 
 import argparse
