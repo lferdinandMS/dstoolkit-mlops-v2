@@ -18,8 +18,8 @@ from azure.ai.ml import load_component
 import os
 from mlops.common.config_utils import MLOpsConfig
 from mlops.common.naming_utils import generate_model_name
-from mlops.common.pipeline_job_config import PipelineJobConfig
 from mlops.common.pipeline_utils import prepare_and_execute_pipeline
+from mlops.common.pipeline_job_config import PipelineJobConfig
 
 gl_pipeline_components = []
 
