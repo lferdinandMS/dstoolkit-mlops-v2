@@ -8,6 +8,7 @@ tfstate_rg_name = "#{TFSTATE_RESOURCE_GROUP_NAME}#"
 tfstate_storage_acct = "#{TFSTATE_STORAGE_ACCT_NAME}#"
 workspace_name = "#{WORKSPACE_NAME}#"
 service_principal_object_id = "#{SERVICE_PRINCIPAL_OBJECT_ID}#"
+
 training_cluster_name = "#{TRAINING_CLUSTER_NAME}#"
 training_cluster_vm_size = "#{TRAINING_CLUSTER_VM_SIZE}#"
 

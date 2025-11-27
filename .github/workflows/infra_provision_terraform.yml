@@ -16,6 +16,10 @@ env:
   ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
   SUBSCRIPTION_ID: ${{ vars.SUBSCRIPTION_ID }}
   SERVICE_PRINCIPAL_OBJECT_ID: ${{ vars.SERVICE_PRINCIPAL_OBJECT_ID }}
+  TRAINING_CLUSTER_NAME: ${{ vars.training_cluster_name }}  
+  TRAINING_CLUSTER_VM_SIZE: ${{ vars.training_cluster_vm_size }}
+  BATCH_CLUSTER_NAME: ${{ vars.batch_cluster_name }}
+  BATCH_CLUSTER_VM_SIZE: ${{ vars.batch_cluster_vm_size }}
 
 jobs:
   terraform:
@@ -53,6 +57,10 @@ jobs:
           echo '${{ env.SUBSCRIPTION_ID }}'
           echo '${{ env.ARM_CLIENT_ID }}'
           echo '${{ env.ARM_TENANT_ID }}'
+          echo '${{ env.TRAINING_CLUSTER_NAME }}'
+          echo '${{ env.TRAINING_CLUSTER_VM_SIZE }}'
+          echo '${{ env.BATCH_CLUSTER_NAME }}'
+          echo '${{ env.BATCH_CLUSTER_VM_SIZE }}'
 
       - uses: cschleiden/replace-tokens@v1
         with:
@@ -69,6 +77,10 @@ jobs:
           TFSTATE_STORAGE_ACCT_NAME: '${{ env.TFSTATE_STORAGE_ACCT_NAME }}'
           WORKSPACE_NAME: '${{ env.WORKSPACE_NAME }}'
           SERVICE_PRINCIPAL_OBJECT_ID: '${{ env.SERVICE_PRINCIPAL_OBJECT_ID }}'
+          TRAINING_CLUSTER_NAME: '${{ env.TRAINING_CLUSTER_NAME }}'
+          TRAINING_CLUSTER_VM_SIZE: '${{ env.TRAINING_CLUSTER_VM_SIZE }}'
+          BATCH_CLUSTER_NAME: '${{ env.BATCH_CLUSTER_NAME }}'
+          BATCH_CLUSTER_VM_SIZE: '${{ env.BATCH_CLUSTER_VM_SIZE }}'
 
       - name: Setup Terraform state storage
         run: |
