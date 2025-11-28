@@ -1,34 +1,17 @@
-"""
-This module is designed to train a machine learning model.
-
-The module performs the following key steps:
-1. Reading and combining data from specified training data files.
-2. Splitting the combined data into training and testing datasets.
-3. Training a Linear Regression model using the training dataset.
-4. Using MLflow for logging and tracking experiments.
-5. Saving the trained model and its metadata to specified paths.
-"""
+"""Train a machine learning model and log to MLflow."""
 
 import argparse
-from pathlib import Path
+import json
 import os
+import pickle
+from pathlib import Path
+
+import mlflow
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-import pickle
-import mlflow
-import json
-
-import pkg_resources
-print("mlflow:", mlflow.__version__)
-try:
-    print("azureml-mlflow:", pkg_resources.get_distribution("azureml-mlflow").version)
-except Exception as e:
-    print("azureml-mlflow not found or from image:", e)
 
 def main(training_data, test_data, model_output, model_metadata):
-
-
     """
     Read training data, split data and initiate training.
 

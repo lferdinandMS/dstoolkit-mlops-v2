@@ -1,19 +1,12 @@
-"""This module is designed to register machine learning models with MLflow."""
-import mlflow
+"""Register machine learning models with MLflow."""
 import argparse
 import json
 from pathlib import Path
 
 import pkg_resources
-print("mlflow:", mlflow.__version__)
-try:
-    print("azureml-mlflow:", pkg_resources.get_distribution("azureml-mlflow").version)
-except Exception as e:
-    print("azureml-mlflow not found or from image:", e)
+import pkg_resources
 
 def main(model_metadata, model_name, score_report, build_reference):
-
-
     """
     Register the model and assign tags to it.
 
@@ -28,19 +21,20 @@ def main(model_metadata, model_name, score_report, build_reference):
         print("=" * 50)
         print("PACKAGE VERSIONS:")
         try:
-            import pkg_resources
             print(f"mlflow: {pkg_resources.get_distribution('mlflow').version}")
-            print(f"azureml-mlflow: {pkg_resources.get_distribution('azureml-mlflow').version}")
+            print(
+                f"azureml-mlflow: {pkg_resources.get_distribution('azureml-mlflow').version}"
+            )
         except Exception as e:
             print(f"Could not get package versions: {e}")
         print("=" * 50)
 
-        run_file = open(model_metadata)
-        md = json.load(run_file)
+        with open(model_metadata) as run_file:
+            md = json.load(run_file)
         run_uri = md["run_uri"]
 
-        score_file = open(Path(score_report) / "score.txt")
-        score_data = json.load(score_file)
+        with open(Path(score_report) / "score.txt") as score_file:
+            score_data = json.load(score_file)
         cod = score_data["cod"]
         mse = score_data["mse"]
         coff = score_data["coff"]
@@ -81,8 +75,6 @@ def main(model_metadata, model_name, score_report, build_reference):
     except Exception as ex:
         print(ex)
         raise
-    finally:
-        run_file.close()
 
 
 if __name__ == "__main__":
