@@ -56,8 +56,8 @@ def main(training_data, test_data, model_output, model_metadata):
     print(train_data.columns)
 
     train_x, test_x, trainy, testy = split(train_data)
-    write_test_data(test_x, testy)
-    train_model(train_x, trainy)
+    write_test_data(test_x, testy, test_data)
+    train_model(train_x, trainy, model_output, model_metadata)
 
 
 def split(train_data):
@@ -110,7 +110,7 @@ def split(train_data):
     return train_x, test_x, trainy, testy
 
 
-def train_model(train_x, trainy):
+def train_model(train_x, trainy, model_output, model_metadata):
     """
     Train a Linear Regression model and save the model and its metadata.
 
@@ -127,17 +127,21 @@ def train_model(train_x, trainy):
         model = LinearRegression().fit(train_x, trainy)
         print(model.score(train_x, trainy))
 
-        # Output the model, metadata and test data
-        run_id = mlflow.active_run().info.run_id
+        # Log the model to MLflow under the standard artifact path "model"
+        mlflow.sklearn.log_model(model, artifact_path="model")
+
+        # Persist run metadata for the register step
+        run_id = run.info.run_id
         model_uri = f"runs:/{run_id}/model"
-        model_data = {"run_id": run.info.run_id, "run_uri": model_uri}
-        with open(args.model_metadata, "w") as json_file:
+        model_data = {"run_id": run_id, "run_uri": model_uri}
+        with open(model_metadata, "w") as json_file:
             json.dump(model_data, json_file, indent=4)
 
-        pickle.dump(model, open((Path(args.model_output) / "model.sav"), "wb"))
+        # Optionally also dump a pickle alongside for local debugging
+        pickle.dump(model, open((Path(model_output) / "model.sav"), "wb"))
 
 
-def write_test_data(test_x, testy):
+def write_test_data(test_x, testy, test_data_path):
     """
     Write the testing data to a CSV file.
 
@@ -150,7 +154,7 @@ def write_test_data(test_x, testy):
     """
     test_x["cost"] = testy
     print(test_x.shape)
-    test_x.to_csv((Path(args.test_data) / "test_data.csv"))
+    test_x.to_csv((Path(test_data_path) / "test_data.csv"))
 
 
 if __name__ == "__main__":

@@ -27,22 +27,32 @@ def main(model_metadata, model_name, score_report, build_reference):
             print(f"Could not get package versions: {e}")
         print("=" * 50)
 
-        run_file = open(args.model_metadata)
-        model_metadata = json.load(run_file)
-        run_uri = model_metadata["run_uri"]
+        run_file = open(model_metadata)
+        md = json.load(run_file)
+        run_uri = md["run_uri"]
 
-        score_file = open(Path(args.score_report) / "score.txt")
+        score_file = open(Path(score_report) / "score.txt")
         score_data = json.load(score_file)
         cod = score_data["cod"]
         mse = score_data["mse"]
         coff = score_data["coff"]
 
-        # Ensure MLflow is properly configured for Azure ML
-        mlflow.set_tracking_uri(mlflow.get_tracking_uri())
+        # Basic verification that artifacts exist at the expected path
+        client = mlflow.MlflowClient()
+        if run_uri.startswith("runs:/"):
+            parts = run_uri.split("/")
+            run_id = parts[1]
+            artifact_path = "/".join(parts[2:]) if len(parts) > 2 else ""
+            arts = client.list_artifacts(run_id, path=artifact_path)
+            print(f"Artifacts under '{artifact_path}':", [a.path for a in arts])
+            if not arts:
+                raise RuntimeError(
+                    f"No artifacts found at path '{artifact_path}' for run {run_id}."
+                )
 
+        # Register the model
         model_version = mlflow.register_model(run_uri, model_name)
 
-        client = mlflow.MlflowClient()
         client.set_model_version_tag(
             name=model_name, version=model_version.version, key="mse", value=mse
         )
