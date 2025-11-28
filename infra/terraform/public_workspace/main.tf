@@ -33,6 +33,30 @@ resource "azurerm_storage_account" "stacc" {
   depends_on = [azurerm_resource_group.rg]
 }
 
+resource "azurerm_storage_container" "workspace_blob" {
+  name                 = "workspaceblobstore"
+  storage_account_id   = azurerm_storage_account.stacc.id
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_share" "workspace_file" {
+  name               = "workspacefilestore"
+  storage_account_id = azurerm_storage_account.stacc.id
+  quota              = 5120
+}
+
+resource "azurerm_storage_container" "workspace_artifact" {
+  name                  = "workspaceartifactstore"
+  storage_account_id    = azurerm_storage_account.stacc.id
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "workspace_working_dir" {
+  name                  = "workspaceworkingdirectory"
+  storage_account_id    = azurerm_storage_account.stacc.id
+  container_access_type = "private"
+}
+
 resource "azurerm_container_registry" "acr" {
   name                          = "${var.container_registry_name}"
   location                      = var.location
@@ -60,6 +84,39 @@ resource "azurerm_container_registry" "acr" {
   
   # Network isolation disabled - workspace accessible from public internet
   # For production, consider enabling managed_network with appropriate isolation_mode
+}
+
+resource "azurerm_machine_learning_datastore_blobstorage" "workspace_blob" {
+  name                     = "workspaceblobstore"
+  workspace_id             = azurerm_machine_learning_workspace.adl_mlw.id
+  storage_container_id     = azurerm_storage_container.workspace_blob.id
+  service_data_auth_identity = "WorkspaceSystemAssignedIdentity"
+  is_default               = true
+  depends_on               = [azurerm_machine_learning_workspace.adl_mlw]
+}
+
+resource "azurerm_machine_learning_datastore_fileshare" "workspace_file" {
+  name                 = "workspacefilestore"
+  workspace_id         = azurerm_machine_learning_workspace.adl_mlw.id
+  storage_fileshare_id = azurerm_storage_share.workspace_file.id
+  service_data_identity = "WorkspaceSystemAssignedIdentity"
+  depends_on           = [azurerm_machine_learning_workspace.adl_mlw]
+}
+
+resource "azurerm_machine_learning_datastore_blobstorage" "workspace_artifact" {
+  name                     = "workspaceartifactstore"
+  workspace_id             = azurerm_machine_learning_workspace.adl_mlw.id
+  storage_container_id     = azurerm_storage_container.workspace_artifact.id
+  service_data_auth_identity = "WorkspaceSystemAssignedIdentity"
+  depends_on               = [azurerm_machine_learning_workspace.adl_mlw]
+}
+
+resource "azurerm_machine_learning_datastore_blobstorage" "workspace_working_dir" {
+  name                     = "workspaceworkingdirectory"
+  workspace_id             = azurerm_machine_learning_workspace.adl_mlw.id
+  storage_container_id     = azurerm_storage_container.workspace_working_dir.id
+  service_data_auth_identity = "WorkspaceSystemAssignedIdentity"
+  depends_on               = [azurerm_machine_learning_workspace.adl_mlw]
 }
 
 # Role assignments ensure workspace and compute identities have the data-plane access they need
