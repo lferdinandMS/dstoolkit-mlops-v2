@@ -100,24 +100,6 @@ resource "azurerm_machine_learning_compute_cluster" "batch" {
   }
 }
 
-resource "azurerm_role_assignment" "workspace_blob" {
-  scope                = azurerm_storage_account.stacc.id
-  role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "workspace_table" {
-  scope                = azurerm_storage_account.stacc.id
-  role_definition_name = "Storage Table Data Contributor"
-  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "workspace_queue" {
-  scope                = azurerm_storage_account.stacc.id
-  role_definition_name = "Storage Queue Data Contributor"
-  principal_id         = azurerm_machine_learning_workspace.adl_mlw.identity[0].principal_id
-}
-
 resource "azurerm_role_assignment" "workspace_data_scientist" {
   scope                = azurerm_machine_learning_workspace.adl_mlw.id
   role_definition_name = "AzureML Data Scientist"
