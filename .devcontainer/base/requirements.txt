@@ -1,4 +1,4 @@
-azure-ai-ml>=1.10.0
+azure-ai-ml>=1.30.0
 azure-cli==2.64.0
 azure-identity>=1.15.0
 azure-keyvault-secrets>=4.7.0
