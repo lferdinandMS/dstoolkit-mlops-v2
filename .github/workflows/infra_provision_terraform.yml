@@ -161,6 +161,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          RG_EXISTS=$(az group exists --name '${{ env.RESOURCE_GROUP_NAME }}')
+          if [ "$RG_EXISTS" != "true" ]; then
+            echo "Resource group '${{ env.RESOURCE_GROUP_NAME }}' not found; skipping role cleanup"
+            exit 0
+          fi
+
           STORAGE_SCOPE=$(az storage account show --name '${{ env.STORAGE_ACCT_NAME }}' --resource-group '${{ env.RESOURCE_GROUP_NAME }}' --query id -o tsv)
           WORKSPACE_SCOPE=$(az ml workspace show --name '${{ env.WORKSPACE_NAME }}' --resource-group '${{ env.RESOURCE_GROUP_NAME }}' --query id -o tsv 2>/dev/null || echo "")
 
