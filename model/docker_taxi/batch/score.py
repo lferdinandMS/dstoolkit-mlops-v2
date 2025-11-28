@@ -16,14 +16,15 @@ def init():
     global model
 
     # Log identity information for diagnostics
-    print("="*80)
+    print("=" * 80)
     print("BATCH SCORING IDENTITY DIAGNOSTICS")
-    print("="*80)
-    
+    print("=" * 80)
+
     try:
         # Get the identity token metadata to see which identity is being used
         result = subprocess.run(
-            ["curl", "-H", "Metadata:true", "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/"],
+            ["curl", "-H", "Metadata:true", "http://169.254.169.254/metadata/identity/oauth2/token"
+             "?api-version=2018-02-01&resource=https://management.azure.com/"],
             capture_output=True,
             text=True,
             timeout=5
@@ -36,12 +37,12 @@ def init():
             print("Could not retrieve identity token metadata")
     except Exception as e:
         print(f"Error checking identity: {e}")
-    
+
     # Log environment info
     print(f"AZUREML_MODEL_DIR: {os.getenv('AZUREML_MODEL_DIR', 'Not set')}")
     print(f"AZUREML_RUN_ID: {os.getenv('AZUREML_RUN_ID', 'Not set')}")
     print(f"Working directory: {os.getcwd()}")
-    print("="*80)
+    print("=" * 80)
 
     model_path = os.path.join(os.getenv("AZUREML_MODEL_DIR"), "model", "model.pkl")
 
@@ -58,7 +59,7 @@ def run(mini_batch: List[str]) -> pd.DataFrame:
     In the example we extract the data from the json input and call the scikit-learn model's predict()
     method and return the result back.
     """
-    
+
     import os
     print(os.environ.get("DEFAULT_IDENTITY_CLIENT_ID"))
 
