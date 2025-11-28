@@ -6,7 +6,7 @@ dependencies:
   - pip
   - pip:
     - mlflow==2.7.0
-    - azureml-mlflow==1.83
+    - azureml-mlflow==1.61.0
     - azure-ai-ml>=1.10.0
     - azure-identity>=1.15.0
     - azure-keyvault-secrets>=4.7.0

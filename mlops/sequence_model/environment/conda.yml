@@ -7,7 +7,7 @@ dependencies:
   - pip:
     - python-dotenv
     - mlflow==2.7.0
-    - azureml-mlflow>=1.83.0
+    - azureml-mlflow==1.61.0
     - azure-ai-ml>=1.10.0
     - azure-identity>=1.15.0
     - azure-keyvault-secrets>=4.7.0
@@ -16,7 +16,6 @@ dependencies:
     - azureml-defaults==1.55.0
     - azure-ml==0.0.1
     - azure-ml-component==0.9.18.post2
-    - azureml-mlflow==1.55.0
     - azureml-contrib-services==1.55.0
     - azureml-contrib-services==1.55.0
     - azureml-automl-common-tools==1.55.0
