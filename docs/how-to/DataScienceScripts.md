@@ -98,7 +98,7 @@ The Data Science script must define the python dependencies required to run the 
     channels:
     - conda-forge
     dependencies:
-    - python=3.9
+    - python=3.10
     - pip
     - pip:
         - python-dotenv

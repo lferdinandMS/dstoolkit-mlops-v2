@@ -19,7 +19,7 @@ on:
 env:
   CLEAN_UP_DATE: ${{ inputs.date }}
   JOB_TYPE: ${{ inputs.jobType }}
-  PYTHON_VERSION: "3.9"
+  PYTHON_VERSION: "3.10"
   RESOURCE_GROUP_NAME: ${{ vars.RESOURCE_GROUP_NAME }}
   SUBSCRIPTION_ID: ${{ vars.SUBSCRIPTION_ID }}
   WORKSPACE_NAME: ${{ vars.WORKSPACE_NAME }}
