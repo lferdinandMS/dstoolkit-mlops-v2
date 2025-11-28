@@ -59,7 +59,6 @@ def run(mini_batch: List[str]) -> pd.DataFrame:
     In the example we extract the data from the json input and call the scikit-learn model's predict()
     method and return the result back.
     """
-
     import os
     print(os.environ.get("DEFAULT_IDENTITY_CLIENT_ID"))
 
