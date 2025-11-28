@@ -19,6 +19,12 @@ import pickle
 import mlflow
 import json
 
+import pkg_resources, mlflow
+print("mlflow:", mlflow.__version__)
+try:
+    print("azureml-mlflow:", pkg_resources.get_distribution("azureml-mlflow").version)
+except Exception as e:
+    print("azureml-mlflow not found or from image:", e)
 
 def main(training_data, test_data, model_output, model_metadata):
     """

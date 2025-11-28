@@ -4,6 +4,12 @@ import argparse
 import json
 from pathlib import Path
 
+import pkg_resources, mlflow
+print("mlflow:", mlflow.__version__)
+try:
+    print("azureml-mlflow:", pkg_resources.get_distribution("azureml-mlflow").version)
+except Exception as e:
+    print("azureml-mlflow not found or from image:", e)
 
 def main(model_metadata, model_name, score_report, build_reference):
     """
