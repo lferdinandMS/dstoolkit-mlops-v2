@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 
 import pkg_resources
-import pkg_resources
+import mlflow
+
 
 def main(model_metadata, model_name, score_report, build_reference):
     """
