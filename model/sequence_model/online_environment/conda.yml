@@ -6,7 +6,7 @@ dependencies:
   - pip
   - pip:
     - mlflow==2.14.3
-    - azureml-mlflow  # provided by curated image; resolved in CI via extra index
+    - # mlflow-skinny==2.14.3
     - azure-ai-ml>=1.30.0
     - azure-identity>=1.15.0
     - azure-keyvault-secrets>=4.7.0
@@ -16,5 +16,4 @@ dependencies:
     - nltk
     - numpy
     - pyyaml
-    - flake8
-    - black
+    # dev-only tools removed for serving footprint
