@@ -7,7 +7,7 @@ dependencies:
   - pip:
     - python-dotenv
     - mlflow==2.14.3
-    # - azureml-mlflow==1.61.0
+    - azureml-mlflow==1.61.0
     - azure-ai-ml>=1.30.0
     - azure-identity>=1.15.0
     - azure-keyvault-secrets>=4.7.0
@@ -29,7 +29,7 @@ dependencies:
     - requests
     - tqdm
     - nltk
-    - numpy
+    - numpy==1.26.4
     - pyyaml
     - flake8
     - black
