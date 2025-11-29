@@ -26,7 +26,7 @@ def main(training_data, test_data, model_output, model_metadata):
     print("Hello training world...")
     print("mlflow", pkg_resources.get_distribution("mlflow").version)
     print("azureml-mlflow", pkg_resources.get_distribution("azureml-mlflow").version)
-    
+
     lines = [
         f"Training data path: {training_data}",
         f"Test data path: {test_data}",
