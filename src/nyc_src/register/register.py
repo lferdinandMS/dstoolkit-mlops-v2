@@ -20,9 +20,14 @@ def main(model_metadata, model_name, score_report, build_reference):
         print("=" * 50)
         print("PACKAGE VERSIONS:")
         try:
-            import pkg_resources
-            print(f"mlflow: {pkg_resources.get_distribution('mlflow').version}")
-            print(f"azureml-mlflow: {pkg_resources.get_distribution('azureml-mlflow').version}")
+            from importlib import metadata
+            mlflow_ver = metadata.version("mlflow")
+            print(f"mlflow: {mlflow_ver}")
+            try:
+                azml_mlflow_ver = metadata.version("azureml-mlflow")
+                print(f"azureml-mlflow: {azml_mlflow_ver}")
+            except metadata.PackageNotFoundError:
+                print("azureml-mlflow: not-installed (curated plugin may be present)")
         except Exception as e:
             print(f"Could not get package versions: {e}")
         print("=" * 50)

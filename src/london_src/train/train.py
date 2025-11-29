@@ -10,7 +10,15 @@ import mlflow
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-import pkg_resources
+from importlib import metadata
+
+
+def _safe_version(dist_name: str) -> str:
+    """Return installed version for a distribution or 'not-installed'."""
+    try:
+        return metadata.version(dist_name)
+    except metadata.PackageNotFoundError:
+        return "not-installed"
 
 
 def main(training_data, test_data, model_output, model_metadata):
@@ -24,8 +32,12 @@ def main(training_data, test_data, model_output, model_metadata):
       model_metadata (str): a file to store information about thr model
     """
     print("Hello training world...")
-    print("mlflow", pkg_resources.get_distribution("mlflow").version)
-    print("azureml-mlflow", pkg_resources.get_distribution("azureml-mlflow").version)
+    print("mlflow", _safe_version("mlflow"))
+    # Only print azureml-mlflow if the public package is installed; when using
+    # curated AML images, the plugin may be present without a pip distribution.
+    azml_mlflow_ver = _safe_version("azureml-mlflow")
+    if azml_mlflow_ver != "not-installed":
+        print("azureml-mlflow", azml_mlflow_ver)
 
     lines = [
         f"Training data path: {training_data}",
