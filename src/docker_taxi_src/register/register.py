@@ -16,15 +16,6 @@ def main(model_metadata, model_name, score_report, build_reference):
       build_reference (str): a build id
     """
     try:
-        # Print package versions for debugging
-        print("=" * 50)
-        print("PACKAGE VERSIONS:")
-        try:
-            import pkg_resources
-            print(f"mlflow: {pkg_resources.get_distribution('mlflow').version}")
-            print(f"azureml-mlflow: {pkg_resources.get_distribution('azureml-mlflow').version}")
-        except Exception as e:
-            print(f"Could not get package versions: {e}")
         print("=" * 50)
 
         run_file = open(args.model_metadata)

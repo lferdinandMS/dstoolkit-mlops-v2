@@ -137,10 +137,15 @@ def train_model(train_x, trainy, model_output, model_metadata):
         # Log the model to MLflow under the standard artifact path "model"
         mlflow.sklearn.log_model(model, artifact_path="model")
 
+        # Ensure parent directories exist for outputs that use Upload mechanism
+        Path(model_output).mkdir(parents=True, exist_ok=True)
+
         # Persist run metadata for the register step
         run_id = run.info.run_id
         model_uri = f"runs:/{run_id}/model"
         model_data = {"run_id": run_id, "run_uri": model_uri}
+        # Create parent directory for file output if not present
+        Path(model_metadata).parent.mkdir(parents=True, exist_ok=True)
         with open(model_metadata, "w") as json_file:
             json.dump(model_data, json_file, indent=4)
 
@@ -161,6 +166,8 @@ def write_test_data(test_x, testy, test_data_path):
     """
     test_x["cost"] = testy
     print(test_x.shape)
+    # Ensure parent directory exists (mounts are usually present but safe to create)
+    Path(test_data_path).mkdir(parents=True, exist_ok=True)
     test_x.to_csv((Path(test_data_path) / "test_data.csv"))
 
 
