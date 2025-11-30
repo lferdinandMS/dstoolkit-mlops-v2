@@ -4,7 +4,7 @@ azure-identity>=1.15.0
 azure-keyvault-secrets>=4.7.0
 # Bump to a version compatible with psutil>=5.9 (required by azure-cli-core)
 azureml-inference-server-http>=0.8.0,<1.0.0
-azureml-mlflow==1.61.0
+azureml-mlflow>=1.63.0,<2.0.0
 flake8-docstrings==1.7.0
 flake8==6.1.0
 flake8-docstrings==1.7.0

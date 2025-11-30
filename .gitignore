@@ -111,6 +111,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+# Mamba temp requirement artifacts
+mlops/*/environment/mamba*
 
 # Spyder project settings
 .spyderproject
@@ -132,3 +134,5 @@ dmypy.json
 
 
 /logs/
+# Mamba temporary environment resolution artifacts (auto-generated, do not commit)
+mlops/*/environment/mamba*

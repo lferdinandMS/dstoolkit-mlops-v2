@@ -107,6 +107,11 @@ def split(train_data):
         ]
     ]
 
+    # Encode non-numeric columns to numeric (e.g., vendor, store_forward)
+    for col in x.columns:
+        if x[col].dtype == object:
+            x[col] = x[col].astype("category").cat.codes
+
     # Split the data into train and test sets
     train_x, test_x, trainy, testy = train_test_split(
         x, y, test_size=0.3, random_state=42
@@ -135,7 +140,16 @@ def train_model(train_x, trainy, model_output, model_metadata):
         print(model.score(train_x, trainy))
 
         # Log the model to MLflow under the standard artifact path "model"
-        mlflow.sklearn.log_model(model, artifact_path="model")
+            # Prefer MLflow logging; fall back to local pickle on AML plugin mismatch
+            try:
+                mlflow.sklearn.log_model(model, artifact_path="model")
+            except TypeError as e:
+                from pathlib import Path
+                import pickle
+                print(f"mlflow.log_model failed ({e}); saving local pickle instead")
+                Path(model_output).mkdir(parents=True, exist_ok=True)
+                with open(Path(model_output) / "model.pkl", "wb") as f:
+                    pickle.dump(model, f)
 
         # Ensure parent directories exist for outputs that use Upload mechanism
         Path(model_output).mkdir(parents=True, exist_ok=True)

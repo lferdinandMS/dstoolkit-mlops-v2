@@ -1,0 +1,15 @@
+# Azure ML training environment pins to align MLflow with azureml-mlflow
+# Python runtime: 3.10.x
+
+# Core MLflow + AzureML plugin
+mlflow==2.14.3
+azureml-mlflow>=1.6.3,<2.0.0
+
+# Data + model libs (match existing project expectations)
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.1.3
+pyyaml>=6.0.1
+
+# Logging/utility
+tqdm>=4.66.4
