@@ -1,14 +1,15 @@
 """
-This module provides functionality for scoring a machine learning model.
+Model scoring utilities.
 
-It includes capabilities to load test data, make predictions using a pre-trained model,
-and save these predictions. The module is designed to work with a specific data format,
-expecting features related to taxi trip data. It outputs the predictions along with actual
-values for further analysis.
+Features:
+- Load test data
+- Load a trained model
+- Generate predictions
+- Persist predictions with actual values for analysis
 
-The module can be executed as a script with command-line arguments specifying paths for the model,
-test data, and the location to save predictions. It is designed to be used in a machine learning
-operations (MLOps) context, where automated scoring of models is a key step in the model evaluation process.
+The script expects taxi trip feature columns and writes a CSV containing
+predicted and actual cost values. Designed for MLOps pipelines where
+automated batch scoring is a model evaluation step.
 """
 
 import argparse
@@ -62,30 +63,29 @@ def load_test_data(test_data):
 
     test_data = df_list[0]
     testy = test_data["cost"]
-    test_x = test_data[
-        [
-            "distance",
-            "dropoff_latitude",
-            "dropoff_longitude",
-            "passengers",
-            "pickup_latitude",
-            "pickup_longitude",
-            "store_forward",
-            "vendor",
-            "pickup_weekday",
-            "pickup_month",
-            "pickup_monthday",
-            "pickup_hour",
-            "pickup_minute",
-            "pickup_second",
-            "dropoff_weekday",
-            "dropoff_month",
-            "dropoff_monthday",
-            "dropoff_hour",
-            "dropoff_minute",
-            "dropoff_second",
-        ]
+    cols = [
+        "distance",
+        "dropoff_latitude",
+        "dropoff_longitude",
+        "passengers",
+        "pickup_latitude",
+        "pickup_longitude",
+        "store_forward",
+        "vendor",
+        "pickup_weekday",
+        "pickup_month",
+        "pickup_monthday",
+        "pickup_hour",
+        "pickup_minute",
+        "pickup_second",
+        "dropoff_weekday",
+        "dropoff_month",
+        "dropoff_monthday",
+        "dropoff_hour",
+        "dropoff_minute",
+        "dropoff_second",
     ]
+    test_x = test_data[cols]
     print(test_x.shape)
     print(test_x.columns)
     return test_x, testy
@@ -104,7 +104,7 @@ def predict(test_x, testy, model_input, prediction_path):
     # Load the model from input port
     model = pickle.load(open((Path(model_input) / "model.sav"), "rb"))
 
-    # Make predictions on test_x data and record them in a column named predicted_cost
+    # Store predictions in 'predicted_cost'
     predictions = model.predict(test_x)
     test_x["predicted_cost"] = predictions
     print(test_x.shape)
@@ -113,7 +113,7 @@ def predict(test_x, testy, model_input, prediction_path):
     output_data = pd.DataFrame(test_x)
     output_data["actual_cost"] = testy
 
-    # Save the output data with feature columns, predicted cost, and actual cost in csv file
+    # Save feature columns + predicted + actual cost to CSV
     output_data = output_data.to_csv((Path(prediction_path) / "predictions.csv"))
 
 

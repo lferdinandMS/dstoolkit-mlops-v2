@@ -7,6 +7,10 @@ from typing import Optional, Tuple
 
 from importlib import metadata
 import mlflow
+try:
+    from mlflow.exceptions import RestException
+except Exception:  # pragma: no cover
+    RestException = None
 
 
 def main(model_metadata, model_name, score_report, build_reference):
@@ -83,9 +87,34 @@ def _register_with_fallback(
     build_reference: Optional[str],
 ):
     """Try MLflow registration; on plugin mismatch, fall back to AML model asset."""
+    # Pre-check: if artifact path 'model' is expected but missing, skip MLflow registration.
+    if run_uri.startswith("runs:/"):
+        parts = run_uri.split("/")
+        _rid = parts[1]
+        artifact_subpath = "/".join(parts[2:]) if len(parts) > 2 else ""
+        if artifact_subpath == "model":
+            try:
+                arts = mlflow.MlflowClient().list_artifacts(_rid, path="model")
+                if not arts:
+                    print(
+                        "No 'model' artifact found; using AML fallback."  # shortened
+                    )
+                    return _fallback_register_azureml_model(
+                        model_name=model_name,
+                        run_id=run_id,
+                        mse=mse,
+                        coff=coff,
+                        cod=cod,
+                        build_reference=build_reference,
+                    )
+            except Exception as pre_err:
+                print(
+                    f"Artifact listing failed ({pre_err}); continuing MLflow attempt."
+                )
+
     try:
         mv = mlflow.register_model(run_uri, model_name)
-        print("Registered via MLflow model registry.")
+        print("Registered via MLflow registry.")
         return mv
     except TypeError as e:
         print(f"mlflow.register_model failed with TypeError: {e}")
@@ -97,6 +126,25 @@ def _register_with_fallback(
             cod=cod,
             build_reference=build_reference,
         )
+    except Exception as re:
+        # Handle missing artifact 404 only if RestException available
+        if (
+            RestException
+            and isinstance(re, RestException)
+            and getattr(re, "error_code", "").upper() == "RESOURCE_DOES_NOT_EXIST"
+        ):
+            print(
+                "MLflow model artifact missing (404); using AML fallback."  # noqa: E501
+            )
+            return _fallback_register_azureml_model(
+                model_name=model_name,
+                run_id=run_id,
+                mse=mse,
+                coff=coff,
+                cod=cod,
+                build_reference=build_reference,
+            )
+        raise
 
 
 def _fallback_register_azureml_model(

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import mlflow
+from mlflow.sklearn import save_model as mlflow_save_model
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
@@ -142,6 +143,7 @@ def train_model(train_x, trainy, model_output, model_metadata):
         # Prefer MLflow logging; fall back to local pickle on AML plugin mismatch
         try:
             mlflow.sklearn.log_model(model, artifact_path="model")
+            model_artifact_logged = True
         except TypeError as e:
             from pathlib import Path
             import pickle
@@ -149,6 +151,17 @@ def train_model(train_x, trainy, model_output, model_metadata):
             Path(model_output).mkdir(parents=True, exist_ok=True)
             with open(Path(model_output) / "model.pkl", "wb") as f:
                 pickle.dump(model, f)
+            # Attempt to build a minimal MLflow model directory and log it so that
+            # later registration step finds an artifact path. If this also fails,
+            # we will record a flag in metadata.
+            model_artifact_logged = False
+            try:
+                local_mlflow_dir = Path(model_output) / "mlflow_fallback_model"
+                mlflow_save_model(model, path=str(local_mlflow_dir))
+                mlflow.log_artifacts(str(local_mlflow_dir), artifact_path="model")
+                model_artifact_logged = True
+            except Exception as e2:
+                print(f"Fallback attempt to create/log MLflow model directory failed: {e2}")
 
         # Ensure parent directories exist for outputs that use Upload mechanism
         Path(model_output).mkdir(parents=True, exist_ok=True)
@@ -156,7 +169,11 @@ def train_model(train_x, trainy, model_output, model_metadata):
         # Persist run metadata for the register step
         run_id = run.info.run_id
         model_uri = f"runs:/{run_id}/model"
-        model_data = {"run_id": run_id, "run_uri": model_uri}
+        model_data = {
+            "run_id": run_id,
+            "run_uri": model_uri,
+            "model_artifact_logged": model_artifact_logged,
+        }
         # Create parent directory for file output if not present
         Path(model_metadata).parent.mkdir(parents=True, exist_ok=True)
         with open(model_metadata, "w") as json_file:

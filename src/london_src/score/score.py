@@ -1,11 +1,11 @@
 """
-This module is designed for scoring a machine learning model by comparing its predictions against actual values.
+Score a trained model against predictions.
 
-The module accomplishes several key tasks:
-- It loads test data and a machine learning model.
-- It calculates scoring metrics such as mean squared error (MSE) and the coefficient of determination (R^2).
-- It logs these metrics using mlflow.
-- It outputs a scoring report with key model performance metrics.
+Steps:
+1. Load predictions and model
+2. Compute MSE and R^2
+3. Log metrics to MLflow
+4. Persist a JSON score report
 """
 
 import argparse

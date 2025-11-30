@@ -1,11 +1,14 @@
 """
-This module is responsible for transforming pre-processed data for the London Taxi dataset.
+Data transformation for the London Taxi dataset.
 
-The module includes a main function that orchestrates the reading of cleaned data,
-performs further transformations, and outputs the transformed data for model training.
-The transformations involve filtering out geographical coordinates outside the city borders,
-normalizing data types, splitting datetime fields into more granular components, and
-filtering out outliers in the dataset.
+Pipeline:
+1. Read cleaned input files
+2. Filter coordinates outside service bounds
+3. Normalize dtypes (lat/long, distance)
+4. Derive granular time features (weekday, month, day, hour, minute, second)
+5. Drop coarse date/time columns
+6. Convert categorical store_forward to binary
+7. Remove zero distance or zero cost outliers
 """
 
 import argparse
@@ -103,14 +106,7 @@ def transform_data(combined_df):
 
     # These functions transform the renamed data to be used finally for training.
 
-    # Split the pickup and dropoff date further into the day of the week, day of the month, and month values.
-    # To get the day of the week value, use the derive_column_by_example() function.
-    # The function takes an array parameter of example objects that define the input data,
-    # and the preferred output. The function automatically determines your preferred transformation.
-    # For the pickup and dropoff time columns, split the time into the hour, minute, and second by using
-    # the split_column_by_example() function with no example parameter. After you generate the new features,
-    # use the drop_columns() function to delete the original fields as the newly generated features are preferred.
-    # Rename the rest of the fields to use meaningful descriptions.
+    # Derive granular date/time features then drop original columns.
 
     temp = pd.DatetimeIndex(normalized_df["pickup_datetime"], dtype="datetime64[ns]")
     normalized_df["pickup_date"] = temp.date
@@ -140,9 +136,7 @@ def transform_data(combined_df):
     print(normalized_df.head)
     print(normalized_df.dtypes)
 
-    # Drop the pickup_date, dropoff_date, pickup_time, dropoff_time columns because they're
-    # no longer needed (granular time features like hour,
-    # minute and second are more useful for model training).
+    # Drop coarse date/time columns (granular features are more predictive).
     del normalized_df["pickup_date"]
     del normalized_df["dropoff_date"]
     del normalized_df["pickup_time"]
@@ -153,11 +147,7 @@ def transform_data(combined_df):
         (normalized_df.store_forward == "N"), 0, 1
     )
 
-    # Before you package the dataset, run two final filters on the dataset.
-    # To eliminate incorrectly captured data points,
-    # filter the dataset on records where both the cost and distance variable values are greater than zero.
-    # This step will significantly improve machine learning model accuracy,
-    # because data points with a zero cost or distance represent major outliers that throw off prediction accuracy.
+    # Filter out cost or distance == 0 rows to reduce outliers.
 
     final_df = normalized_df[(normalized_df.distance > 0) & (normalized_df.cost > 0)]
     final_df.reset_index(inplace=True, drop=True)
