@@ -1,6 +1,7 @@
-"""Register machine learning models with MLflow."""
+"""Register machine learning models with MLflow, with AML fallback."""
 import argparse
 import json
+import os
 from pathlib import Path
 
 from importlib import metadata
@@ -33,9 +34,23 @@ def main(model_metadata, model_name, score_report, build_reference):
             print(f"Could not get package versions: {e}")
         print("=" * 50)
 
-        with open(model_metadata) as run_file:
+        # Support both file path and folder input for model_metadata
+        mm_path = Path(model_metadata)
+        if mm_path.is_dir():
+            candidate = mm_path / "model_metadata.json"
+            if not candidate.exists():
+                json_files = list(mm_path.glob("*.json"))
+                if not json_files:
+                    raise FileNotFoundError(
+                        f"No model metadata JSON found under folder: {mm_path}"
+                    )
+                candidate = json_files[0]
+            mm_path = candidate
+
+        with open(mm_path) as run_file:
             md = json.load(run_file)
         run_uri = md["run_uri"]
+        run_id = md.get("run_id")
 
         with open(Path(score_report) / "score.txt") as score_file:
             score_data = json.load(score_file)
@@ -43,42 +58,126 @@ def main(model_metadata, model_name, score_report, build_reference):
         mse = score_data["mse"]
         coff = score_data["coff"]
 
-        # Basic verification that artifacts exist at the expected path
+        # Attempt MLflow registration first
         client = mlflow.MlflowClient()
-        if run_uri.startswith("runs:/"):
-            parts = run_uri.split("/")
-            run_id = parts[1]
-            artifact_path = "/".join(parts[2:]) if len(parts) > 2 else ""
-            arts = client.list_artifacts(run_id, path=artifact_path)
-            print(f"Artifacts under '{artifact_path}':", [a.path for a in arts])
-            if not arts:
-                raise RuntimeError(
-                    f"No artifacts found at path '{artifact_path}' for run {run_id}."
-                )
+        try:
+            # Avoid pre-listing artifacts to reduce plugin surface area
+            model_version = mlflow.register_model(run_uri, model_name)
+            print("Registered via MLflow model registry.")
+        except TypeError as e:
+            # Common on curated AML images when plugin/base-class signatures mismatch
+            print(f"mlflow.register_model failed with TypeError: {e}")
+            model_version = _fallback_register_azureml_model(
+                model_name=model_name,
+                run_id=run_id,
+                mse=mse,
+                coff=coff,
+                cod=cod,
+                build_reference=build_reference,
+            )
+            if model_version is None:
+                raise
 
-        # Register the model
-        model_version = mlflow.register_model(run_uri, model_name)
-
-        client.set_model_version_tag(
-            name=model_name, version=model_version.version, key="mse", value=mse
-        )
-        client.set_model_version_tag(
-            name=model_name, version=model_version.version, key="coff", value=coff
-        )
-        client.set_model_version_tag(
-            name=model_name, version=model_version.version, key="cod", value=cod
-        )
-        client.set_model_version_tag(
-            name=model_name,
-            version=model_version.version,
-            key="build_id",
-            value=build_reference,
-        )
+        # If MLflow model registry path succeeded, set model version tags
+        if hasattr(model_version, "version"):
+            client.set_model_version_tag(
+                name=model_name, version=model_version.version, key="mse", value=mse
+            )
+            client.set_model_version_tag(
+                name=model_name, version=model_version.version, key="coff", value=coff
+            )
+            client.set_model_version_tag(
+                name=model_name, version=model_version.version, key="cod", value=cod
+            )
+            client.set_model_version_tag(
+                name=model_name,
+                version=model_version.version,
+                key="build_id",
+                value=build_reference,
+            )
 
         print(model_version)
     except Exception as ex:
         print(ex)
         raise
+
+
+def _fallback_register_azureml_model(
+    model_name: str,
+    run_id: str | None,
+    mse: float | None,
+    coff: float | None,
+    cod: float | None,
+    build_reference: str | None,
+):
+    """Fallback: create an Azure ML Model asset from the run's artifact path.
+
+    This avoids MLflow artifact repository constructor mismatches by using the
+    Azure ML v2 SDK to register the model directly from the workspace artifact store.
+
+    Returns a lightweight object with name/version on success, else None.
+    """
+    try:
+        from azure.identity import DefaultAzureCredential
+        from azure.ai.ml import MLClient
+        from azure.ai.ml.entities import Model
+    except Exception as imp_err:
+        print(
+            "azure.ai.ml not available in environment; cannot fallback to AML model registration:",
+            imp_err,
+        )
+        return None
+
+    try:
+        if not run_id:
+            print("No run_id present in metadata; cannot construct AML artifact URI.")
+            return None
+
+        sub = os.environ.get("AZUREML_ARM_SUBSCRIPTION")
+        rg = os.environ.get("AZUREML_ARM_RESOURCEGROUP") or os.environ.get("AZUREML_ARM_RESOURCE_GROUP")
+        ws = os.environ.get("AZUREML_ARM_WORKSPACE_NAME") or os.environ.get("AZUREML_ARM_WORKSPACE")
+
+        if not (sub and rg and ws):
+            print(
+                "Missing AML ARM environment variables; cannot construct AML artifact URI."
+            )
+            return None
+
+        # Path to the standard MLflow model artifact within an AML run
+        aml_artifact_uri = (
+            f"azureml://subscriptions/{sub}/resourcegroups/{rg}/workspaces/{ws}/"
+            f"datastores/workspaceartifactstore/paths/ExperimentRun/dcid.{run_id}/model"
+        )
+        print(f"Attempting AML Model registration from: {aml_artifact_uri}")
+
+        ml_client = MLClient(
+            DefaultAzureCredential(), subscription_id=sub, resource_group_name=rg, workspace_name=ws
+        )
+
+        tags = {
+            "build_id": build_reference or "",
+        }
+        if mse is not None:
+            tags["mse"] = str(mse)
+        if coff is not None:
+            tags["coff"] = str(coff)
+        if cod is not None:
+            tags["cod"] = str(cod)
+
+        model = Model(name=model_name, path=aml_artifact_uri, type="mlflow_model", tags=tags)
+        created = ml_client.models.create_or_update(model)
+        print(f"Registered AML Model asset: {created.name}:{created.version}")
+
+        # Return a lightweight shim with .version to align with MLflow path above
+        class _Shim:
+            def __init__(self, name, version):
+                self.name = name
+                self.version = version
+
+        return _Shim(created.name, created.version)
+    except Exception as e:
+        print("Fallback AML model registration failed:", e)
+        return None
 
 
 if __name__ == "__main__":
