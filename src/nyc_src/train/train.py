@@ -100,6 +100,11 @@ def split(train_data):
         ]
     ]
 
+    # Encode non-numeric columns to numeric (e.g., vendor, store_forward)
+    for col in x.columns:
+        if x[col].dtype == object:
+            x[col] = x[col].astype("category").cat.codes
+
     # Split the data into train and test sets
     train_x, test_x, trainy, testy = train_test_split(
         x, y, test_size=0.3, random_state=42

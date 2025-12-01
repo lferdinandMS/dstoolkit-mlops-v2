@@ -3,13 +3,14 @@ from pathlib import Path
 import argparse
 import json
 import mlflow
+from importlib import metadata
 
 
 def _print_versions() -> None:
     print("=" * 50)
     print("PACKAGE VERSIONS:")
     try:
-        from importlib import metadata
+        
         print(f"mlflow: {metadata.version('mlflow')}")
         try:
             print(f"azureml-mlflow: {metadata.version('azureml-mlflow')}")

@@ -63,29 +63,30 @@ def load_test_data(test_data):
 
     test_data = df_list[0]
     testy = test_data["cost"]
-    cols = [
-        "distance",
-        "dropoff_latitude",
-        "dropoff_longitude",
-        "passengers",
-        "pickup_latitude",
-        "pickup_longitude",
-        "store_forward",
-        "vendor",
-        "pickup_weekday",
-        "pickup_month",
-        "pickup_monthday",
-        "pickup_hour",
-        "pickup_minute",
-        "pickup_second",
-        "dropoff_weekday",
-        "dropoff_month",
-        "dropoff_monthday",
-        "dropoff_hour",
-        "dropoff_minute",
-        "dropoff_second",
+    test_x = test_data[
+        [
+            "distance",
+            "dropoff_latitude",
+            "dropoff_longitude",
+            "passengers",
+            "pickup_latitude",
+            "pickup_longitude",
+            "store_forward",
+            "vendor",
+            "pickup_weekday",
+            "pickup_month",
+            "pickup_monthday",
+            "pickup_hour",
+            "pickup_minute",
+            "pickup_second",
+            "dropoff_weekday",
+            "dropoff_month",
+            "dropoff_monthday",
+            "dropoff_hour",
+            "dropoff_minute",
+            "dropoff_second",
+        ]
     ]
-    test_x = test_data[cols]
     print(test_x.shape)
     print(test_x.columns)
     return test_x, testy

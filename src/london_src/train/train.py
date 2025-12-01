@@ -1,24 +1,23 @@
-"""Train a machine learning model and log to MLflow."""
+"""
+This module is designed to train a machine learning model.
+
+The module performs the following key steps:
+1. Reading and combining data from specified training data files.
+2. Splitting the combined data into training and testing datasets.
+3. Training a Linear Regression model using the training dataset.
+4. Using MLflow for logging and tracking experiments.
+5. Saving the trained model and its metadata to specified paths.
+"""
 
 import argparse
-import json
-import os
 from pathlib import Path
-
-import mlflow
-from mlflow.sklearn import save_model as mlflow_save_model
+import os
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-from importlib import metadata
-
-
-def _safe_version(dist_name: str) -> str:
-    """Return installed version for a distribution or 'not-installed'."""
-    try:
-        return metadata.version(dist_name)
-    except metadata.PackageNotFoundError:
-        return "not-installed"
+import pickle
+import mlflow
+import json
 
 
 def main(training_data, test_data, model_output, model_metadata):
@@ -32,12 +31,6 @@ def main(training_data, test_data, model_output, model_metadata):
       model_metadata (str): a file to store information about thr model
     """
     print("Hello training world...")
-    print("mlflow", _safe_version("mlflow"))
-    # Only print azureml-mlflow if the public package is installed; when using
-    # curated AML images, the plugin may be present without a pip distribution.
-    azml_mlflow_ver = _safe_version("azureml-mlflow")
-    if azml_mlflow_ver != "not-installed":
-        print("azureml-mlflow", azml_mlflow_ver)
 
     lines = [
         f"Training data path: {training_data}",
@@ -63,8 +56,8 @@ def main(training_data, test_data, model_output, model_metadata):
     print(train_data.columns)
 
     train_x, test_x, trainy, testy = split(train_data)
-    write_test_data(test_x, testy, test_data)
-    train_model(train_x, trainy, model_output, model_metadata)
+    write_test_data(test_x, testy)
+    train_model(train_x, trainy)
 
 
 def split(train_data):
@@ -122,7 +115,7 @@ def split(train_data):
     return train_x, test_x, trainy, testy
 
 
-def train_model(train_x, trainy, model_output, model_metadata):
+def train_model(train_x, trainy):
     """
     Train a Linear Regression model and save the model and its metadata.
 
@@ -134,56 +127,32 @@ def train_model(train_x, trainy, model_output, model_metadata):
     None
     """
     mlflow.autolog()
+    # Ensure MLflow tracking is hooked into Azure ML in all contexts
+    try:
+        mlflow.set_tracking_uri(mlflow.get_tracking_uri())
+    except Exception as _e:
+        print(f"mlflow.set_tracking_uri hook failed: {_e}")
     # Train a Linear Regression Model with the train set
     with mlflow.start_run() as run:
         model = LinearRegression().fit(train_x, trainy)
         print(model.score(train_x, trainy))
 
-        # Log the model to MLflow under the standard artifact path "model"
-        # Prefer MLflow logging; fall back to local pickle on AML plugin mismatch
-        try:
-            mlflow.sklearn.log_model(model, artifact_path="model")
-            model_artifact_logged = True
-        except TypeError as e:
-            from pathlib import Path
-            import pickle
-            print(f"mlflow.log_model failed ({e}); saving local pickle instead")
-            Path(model_output).mkdir(parents=True, exist_ok=True)
-            with open(Path(model_output) / "model.pkl", "wb") as f:
-                pickle.dump(model, f)
-            # Attempt to build a minimal MLflow model directory and log it so that
-            # later registration step finds an artifact path. If this also fails,
-            # we will record a flag in metadata.
-            model_artifact_logged = False
-            try:
-                local_mlflow_dir = Path(model_output) / "mlflow_fallback_model"
-                mlflow_save_model(model, path=str(local_mlflow_dir))
-                mlflow.log_artifacts(str(local_mlflow_dir), artifact_path="model")
-                model_artifact_logged = True
-            except Exception as e2:
-                print(f"Fallback attempt to create/log MLflow model directory failed: {e2}")
-
-        # Ensure parent directories exist for outputs that use Upload mechanism
-        Path(model_output).mkdir(parents=True, exist_ok=True)
-
-        # Persist run metadata for the register step
-        run_id = run.info.run_id
+        # Output the model, metadata and test data
+        run_id = mlflow.active_run().info.run_id
         model_uri = f"runs:/{run_id}/model"
-        model_data = {
-            "run_id": run_id,
-            "run_uri": model_uri,
-            "model_artifact_logged": model_artifact_logged,
-        }
-        # Create parent directory for file output if not present
-        Path(model_metadata).parent.mkdir(parents=True, exist_ok=True)
-        with open(model_metadata, "w") as json_file:
+        # Log MLflow model artifact so register can find runs:/<run_id>/model
+        try:
+            mlflow.sklearn.log_model(model, "model")
+        except Exception as log_err:
+            print(f"mlflow.sklearn.log_model failed: {log_err}")
+        model_data = {"run_id": run.info.run_id, "run_uri": model_uri}
+        with open(args.model_metadata, "w") as json_file:
             json.dump(model_data, json_file, indent=4)
 
-        # Optionally also dump a pickle alongside for local debugging
-        pickle.dump(model, open((Path(model_output) / "model.sav"), "wb"))
+        pickle.dump(model, open((Path(args.model_output) / "model.sav"), "wb"))
 
 
-def write_test_data(test_x, testy, test_data_path):
+def write_test_data(test_x, testy):
     """
     Write the testing data to a CSV file.
 
@@ -196,9 +165,7 @@ def write_test_data(test_x, testy, test_data_path):
     """
     test_x["cost"] = testy
     print(test_x.shape)
-    # Ensure parent directory exists (mounts are usually present but safe to create)
-    Path(test_data_path).mkdir(parents=True, exist_ok=True)
-    test_x.to_csv((Path(test_data_path) / "test_data.csv"))
+    test_x.to_csv((Path(args.test_data) / "test_data.csv"))
 
 
 if __name__ == "__main__":
