@@ -130,6 +130,11 @@ def train_model(train_x, trainy):
         # Output the model, metadata and test data
         run_id = mlflow.active_run().info.run_id
         model_uri = f"runs:/{run_id}/model"
+        # Log MLflow model artifact so register can find runs:/<run_id>/model
+        try:
+            mlflow.sklearn.log_model(model, "model")
+        except Exception as log_err:
+            print(f"mlflow.sklearn.log_model failed: {log_err}")
         model_data = {"run_id": run.info.run_id, "run_uri": model_uri}
         with open(args.model_metadata, "w") as json_file:
             json.dump(model_data, json_file, indent=4)

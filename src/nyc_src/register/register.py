@@ -45,6 +45,22 @@ def main(model_metadata, model_name, score_report, build_reference):
         # Ensure MLflow is properly configured for Azure ML
         mlflow.set_tracking_uri(mlflow.get_tracking_uri())
 
+        # Pre-check: ensure 'model' artifact exists for this run before registering
+        try:
+            if run_uri.startswith("runs:/"):
+                parts = run_uri.split("/")
+                _rid = parts[1]
+                artifact_subpath = "/".join(parts[2:]) if len(parts) > 2 else ""
+                if artifact_subpath == "model":
+                    arts = mlflow.MlflowClient().list_artifacts(_rid, path="model")
+                    if not arts:
+                        print(
+                            "No 'model' artifact found for run; skipping MLflow registration."
+                        )
+                        return
+        except Exception as pre_err:
+            print(f"Artifact listing pre-check failed: {pre_err}. Continuing...")
+
         model_version = mlflow.register_model(run_uri, model_name)
 
         client = mlflow.MlflowClient()
