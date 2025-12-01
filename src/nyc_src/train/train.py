@@ -122,6 +122,11 @@ def train_model(train_x, trainy):
     None
     """
     mlflow.autolog()
+    # Ensure MLflow tracking is hooked into Azure ML in all contexts
+    try:
+        mlflow.set_tracking_uri(mlflow.get_tracking_uri())
+    except Exception as _e:
+        print(f"mlflow.set_tracking_uri hook failed: {_e}")
     # Train a Linear Regression Model with the train set
     with mlflow.start_run() as run:
         model = LinearRegression().fit(train_x, trainy)
