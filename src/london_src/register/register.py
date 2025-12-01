@@ -3,6 +3,7 @@ from pathlib import Path
 import argparse
 import json
 import mlflow
+from importlib import metadata
 
 
 def _print_versions() -> None:

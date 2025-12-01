@@ -10,7 +10,7 @@ def _print_versions() -> None:
     print("=" * 50)
     print("PACKAGE VERSIONS:")
     try:
-        
+
         print(f"mlflow: {metadata.version('mlflow')}")
         try:
             print(f"azureml-mlflow: {metadata.version('azureml-mlflow')}")
