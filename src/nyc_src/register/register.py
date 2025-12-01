@@ -1,91 +1,93 @@
-"""This module is designed for registering machine learning models in MLflow."""
-import mlflow
+"""Register a trained model in MLflow with minimal complexity."""
+from pathlib import Path
 import argparse
 import json
-from pathlib import Path
+import mlflow
 
 
-def main(model_metadata, model_name, score_report, build_reference):
-    """
-    Register the model and assign tags to it.
-
-    Parameters:
-      model_metadata (str): model information from previous steps
-      model_name (str): model name
-      score_report (str): a report from te validation (score) step
-      build_reference (str): a build id
-    """
+def _print_versions() -> None:
+    print("=" * 50)
+    print("PACKAGE VERSIONS:")
     try:
-        # Print package versions for debugging
-        print("=" * 50)
-        print("PACKAGE VERSIONS:")
+        from importlib import metadata
+        print(f"mlflow: {metadata.version('mlflow')}")
         try:
-            from importlib import metadata
-            mlflow_ver = metadata.version("mlflow")
-            print(f"mlflow: {mlflow_ver}")
-            try:
-                azml_mlflow_ver = metadata.version("azureml-mlflow")
-                print(f"azureml-mlflow: {azml_mlflow_ver}")
-            except metadata.PackageNotFoundError:
-                print("azureml-mlflow: not-installed (curated plugin may be present)")
-        except Exception as e:
-            print(f"Could not get package versions: {e}")
-        print("=" * 50)
+            print(f"azureml-mlflow: {metadata.version('azureml-mlflow')}")
+        except metadata.PackageNotFoundError:
+            print("azureml-mlflow: not-installed (curated plugin may be present)")
+    except Exception as e:  # noqa: BLE001
+        print(f"Could not get package versions: {e}")
+    print("=" * 50)
 
-        run_file = open(args.model_metadata)
-        model_metadata = json.load(run_file)
-        run_uri = model_metadata["run_uri"]
 
-        score_file = open(Path(args.score_report) / "score.txt")
-        score_data = json.load(score_file)
-        cod = score_data["cod"]
-        mse = score_data["mse"]
-        coff = score_data["coff"]
+def _read_json(path: Path) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-        # Ensure MLflow is properly configured for Azure ML
+
+def _parse_run_uri(run_uri: str):
+    """Return (run_id, subpath) for URIs like runs:/<run_id>/model."""
+    if not run_uri.startswith("runs:/"):
+        return None, None
+    parts = run_uri.split("/")
+    run_id = parts[1] if len(parts) > 1 else None
+    subpath = "/".join(parts[2:]) if len(parts) > 2 else None
+    return run_id, subpath
+
+
+def _artifact_exists_for_run(run_uri: str, artifact_subpath: str = "model") -> bool:
+    run_id, subpath = _parse_run_uri(run_uri)
+    if not run_id:
+        return False
+    target = artifact_subpath if subpath in (None, "", artifact_subpath) else subpath
+    try:
+        arts = mlflow.MlflowClient().list_artifacts(run_id, path=target)
+        return bool(arts)
+    except Exception as e:  # noqa: BLE001
+        print(f"Artifact listing failed for run {run_id}: {e}")
+        return False
+
+
+def _set_model_tags(model_name: str, version: str, tags: dict) -> None:
+    client = mlflow.MlflowClient()
+    for k, v in tags.items():
+        client.set_model_version_tag(name=model_name, version=version, key=k, value=v)
+
+
+def main(model_metadata: str, model_name: str, score_report: str, build_reference: str) -> None:
+    """Register an MLflow model version for a given run and tag it.
+
+    Reads run metadata and score report, validates the presence of the
+    MLflow "model" artifact under the run, and registers the model to
+    the registry with relevant tags (mse, coff, cod, build_id).
+    """
+    _print_versions()
+
+    # Ensure MLflow tracking is hooked into Azure ML
+    try:
         mlflow.set_tracking_uri(mlflow.get_tracking_uri())
+    except Exception as _e:  # noqa: BLE001
+        print(f"mlflow.set_tracking_uri hook failed: {_e}")
 
-        # Pre-check: ensure 'model' artifact exists for this run before registering
-        try:
-            if run_uri.startswith("runs:/"):
-                parts = run_uri.split("/")
-                _rid = parts[1]
-                artifact_subpath = "/".join(parts[2:]) if len(parts) > 2 else ""
-                if artifact_subpath == "model":
-                    arts = mlflow.MlflowClient().list_artifacts(_rid, path="model")
-                    if not arts:
-                        print(
-                            "No 'model' artifact found for run; skipping MLflow registration."
-                        )
-                        return
-        except Exception as pre_err:
-            print(f"Artifact listing pre-check failed: {pre_err}. Continuing...")
+    meta = _read_json(Path(model_metadata))
+    run_uri = meta["run_uri"]
 
-        model_version = mlflow.register_model(run_uri, model_name)
+    score = _read_json(Path(score_report) / "score.txt")
+    tags = {
+        "mse": score.get("mse"),
+        "coff": score.get("coff"),
+        "cod": score.get("cod"),
+        "build_id": build_reference,
+    }
 
-        client = mlflow.MlflowClient()
-        client.set_model_version_tag(
-            name=model_name, version=model_version.version, key="mse", value=mse
-        )
-        client.set_model_version_tag(
-            name=model_name, version=model_version.version, key="coff", value=coff
-        )
-        client.set_model_version_tag(
-            name=model_name, version=model_version.version, key="cod", value=cod
-        )
-        client.set_model_version_tag(
-            name=model_name,
-            version=model_version.version,
-            key="build_id",
-            value=build_reference,
-        )
+    # Guard: only register if the MLflow "model" artifact exists for this run
+    if not _artifact_exists_for_run(run_uri, artifact_subpath="model"):
+        print("No 'model' artifact found for run; skipping MLflow registration.")
+        return
 
-        print(model_version)
-    except Exception as ex:
-        print(ex)
-        raise
-    finally:
-        run_file.close()
+    mv = mlflow.register_model(run_uri, model_name)
+    _set_model_tags(model_name, mv.version, tags)
+    print(mv)
 
 
 if __name__ == "__main__":
