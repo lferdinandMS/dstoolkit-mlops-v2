@@ -10,6 +10,7 @@ from importlib import metadata
 
 
 def _print_versions() -> None:
+    """Emit versions of key packages (mlflow, azureml-mlflow) for debugging."""
     print("=" * 50)
     print("PACKAGE VERSIONS:")
     try:
@@ -25,6 +26,7 @@ def _print_versions() -> None:
 
 
 def _read_json(path: Path) -> dict:
+    """Read a JSON file and return its decoded dictionary."""
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -40,6 +42,15 @@ def _parse_run_uri(run_uri: str):
 
 
 def _artifact_exists_for_run(run_uri: str, artifact_subpath: str = "model") -> bool:
+    """Check that an artifact subpath exists under the given MLflow run URI.
+
+    Parameters:
+        run_uri: Full MLflow runs URI (e.g. runs:/<run_id>/model).
+        artifact_subpath: Subpath to verify (default 'model').
+
+    Returns:
+        True if the artifact directory contains at least one entry; False otherwise.
+    """
     run_id, subpath = _parse_run_uri(run_uri)
     if not run_id:
         return False
@@ -53,12 +64,14 @@ def _artifact_exists_for_run(run_uri: str, artifact_subpath: str = "model") -> b
 
 
 def _set_model_tags(model_name: str, version: str, tags: dict) -> None:
+    """Apply key/value tags to a specific MLflow model version."""
     client = mlflow.MlflowClient()
     for k, v in tags.items():
         client.set_model_version_tag(name=model_name, version=version, key=k, value=v)
 
 
 def _get_tracking_uri_safe() -> str | None:
+    """Safely retrieve the MLflow tracking URI or return None if unavailable."""
     try:
         return mlflow.get_tracking_uri()
     except Exception:  # noqa: BLE001
@@ -66,6 +79,7 @@ def _get_tracking_uri_safe() -> str | None:
 
 
 def _print_registration_diagnostics(model_name: str, run_uri: str) -> None:
+    """Print structured diagnostics about model registration context."""
     run_id, parsed_subpath = _parse_run_uri(run_uri)
     tracking_uri = _get_tracking_uri_safe()
     print("-" * 50)
@@ -80,6 +94,7 @@ def _print_registration_diagnostics(model_name: str, run_uri: str) -> None:
 
 
 def _ensure_artifact_or_exit(run_uri: str) -> None:
+    """Verify required 'model' artifact exists or exit with failure code 2."""
     if _artifact_exists_for_run(run_uri, artifact_subpath="model"):
         return
     run_id, _ = _parse_run_uri(run_uri)
@@ -100,6 +115,7 @@ def _ensure_artifact_or_exit(run_uri: str) -> None:
 
 
 def _register_and_tag(run_uri: str, model_name: str, tags: dict) -> None:
+    """Register the MLflow model and apply tags; exit non-zero on failure."""
     try:
         mv = mlflow.register_model(run_uri, model_name)
         _set_model_tags(model_name, mv.version, tags)
@@ -114,6 +130,19 @@ def _register_and_tag(run_uri: str, model_name: str, tags: dict) -> None:
 
 
 def main(model_metadata: str, model_name: str, score_report: str, build_reference: str) -> None:
+    """Register a model version in MLflow.
+
+    Reads run metadata (containing the MLflow run URI) and score report, emits
+    diagnostics, verifies the presence of the MLflow 'model' artifact, and then
+    registers and tags the model. Exits with non-zero status when prerequisites
+    are missing or registration fails so CI surfaces the issue.
+
+    Parameters:
+        model_metadata: Path to JSON with run metadata (includes run_uri).
+        model_name: Target MLflow model container name (branch-derived).
+        score_report: Directory containing score.txt with metrics.
+        build_reference: Build identifier used for tagging.
+    """
     _print_versions()
     try:
         mlflow.set_tracking_uri(mlflow.get_tracking_uri())

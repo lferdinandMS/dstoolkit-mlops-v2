@@ -1,7 +1,10 @@
-"""Register a trained model in MLflow with minimal complexity."""
+"""Register a trained model in MLflow with fail-fast diagnostics."""
 from pathlib import Path
 import argparse
 import json
+import os
+import sys
+import traceback
 import mlflow
 from importlib import metadata
 
@@ -54,16 +57,80 @@ def _set_model_tags(model_name: str, version: str, tags: dict) -> None:
         client.set_model_version_tag(name=model_name, version=version, key=k, value=v)
 
 
-def main(model_metadata: str, model_name: str, score_report: str, build_reference: str) -> None:
-    """Register an MLflow model version for a given run and tag it.
+def _get_tracking_uri_safe() -> str | None:
+    """Safely retrieve the MLflow tracking URI or return None if unavailable."""
+    try:
+        return mlflow.get_tracking_uri()
+    except Exception:  # noqa: BLE001
+        return None
 
-    Reads run metadata and score report, validates the presence of the
-    MLflow "model" artifact under the run, and registers the model to
-    the registry with relevant tags (mse, coff, cod, build_id).
+
+def _print_registration_diagnostics(model_name: str, run_uri: str) -> None:
+    """Print structured diagnostics about model registration context."""
+    run_id, parsed_subpath = _parse_run_uri(run_uri)
+    tracking_uri = _get_tracking_uri_safe()
+    print("-" * 50)
+    print("REGISTRATION DIAGNOSTICS")
+    print(f"tracking_uri: {tracking_uri}")
+    print(f"model_name: {model_name}")
+    print(f"run_uri: {run_uri}")
+    print(f"parsed_run_id: {run_id}")
+    print(f"parsed_subpath: {parsed_subpath}")
+    print(f"MLFLOW_TRACKING_URI env: {os.environ.get('MLFLOW_TRACKING_URI')}")
+    print("-" * 50)
+
+
+def _ensure_artifact_or_exit(run_uri: str) -> None:
+    """Verify required 'model' artifact exists or exit with failure code 2."""
+    if _artifact_exists_for_run(run_uri, artifact_subpath="model"):
+        return
+    run_id, _ = _parse_run_uri(run_uri)
+    try:
+        client = mlflow.MlflowClient()
+        root_list = client.list_artifacts(run_id) if run_id else []
+        model_list = client.list_artifacts(run_id, path="model") if run_id else []
+        print("Artifacts at run root:")
+        for a in root_list:
+            print(f"  - {a.path}")
+        print("Artifacts under 'model':")
+        for a in model_list:
+            print(f"  - {a.path}")
+    except Exception as diag_err:  # noqa: BLE001
+        print(f"Artifact diagnostic listing failed: {diag_err}")
+    print("ERROR: No 'model' artifact found for run; failing registration.")
+    sys.exit(2)
+
+
+def _register_and_tag(run_uri: str, model_name: str, tags: dict) -> None:
+    """Register the MLflow model and apply tags; exit non-zero on failure."""
+    try:
+        mv = mlflow.register_model(run_uri, model_name)
+        _set_model_tags(model_name, mv.version, tags)
+        print(mv)
+    except Exception as reg_err:  # noqa: BLE001
+        print("Registration failed with exception:")
+        print(str(reg_err))
+        print("TRACEBACK START")
+        print(traceback.format_exc())
+        print("TRACEBACK END")
+        sys.exit(1)
+
+
+def main(model_metadata: str, model_name: str, score_report: str, build_reference: str) -> None:
+    """Register a model version in MLflow.
+
+    Reads run metadata (containing the MLflow run URI) and score report, emits
+    diagnostics, verifies the presence of the MLflow 'model' artifact, and then
+    registers and tags the model. Exits with non-zero status when prerequisites
+    are missing or registration fails so CI surfaces the issue.
+
+    Parameters:
+        model_metadata: Path to JSON with run metadata (includes run_uri).
+        model_name: Target MLflow model container name (branch-derived).
+        score_report: Directory containing score.txt with metrics.
+        build_reference: Build identifier used for tagging.
     """
     _print_versions()
-
-    # Ensure MLflow tracking is hooked into Azure ML
     try:
         mlflow.set_tracking_uri(mlflow.get_tracking_uri())
     except Exception as _e:  # noqa: BLE001
@@ -80,14 +147,9 @@ def main(model_metadata: str, model_name: str, score_report: str, build_referenc
         "build_id": build_reference,
     }
 
-    # Guard: only register if the MLflow "model" artifact exists for this run
-    if not _artifact_exists_for_run(run_uri, artifact_subpath="model"):
-        print("No 'model' artifact found for run; skipping MLflow registration.")
-        return
-
-    mv = mlflow.register_model(run_uri, model_name)
-    _set_model_tags(model_name, mv.version, tags)
-    print(mv)
+    _print_registration_diagnostics(model_name, run_uri)
+    _ensure_artifact_or_exit(run_uri)
+    _register_and_tag(run_uri, model_name, tags)
 
 
 if __name__ == "__main__":
