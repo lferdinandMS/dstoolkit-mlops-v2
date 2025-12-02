@@ -1,6 +1,7 @@
 name: MLflow/AzureML-MLflow Compatibility Smoke
 
 on:
+  # Manual run from Actions UI
   workflow_dispatch:
     inputs:
       mlflow_version:
@@ -11,6 +12,16 @@ on:
         description: "Comma-separated azureml-mlflow versions to test"
         required: false
         default: "1.60.0,1.83.0"
+  # Also run when this workflow or the smoke script changes on any branch,
+  # so it appears in Actions even before merging to default branch.
+  push:
+    paths:
+      - ".github/workflows/mlflow_compat_smoke.yml"
+      - "scripts/mlflow_compat_smoke.py"
+  pull_request:
+    paths:
+      - ".github/workflows/mlflow_compat_smoke.yml"
+      - "scripts/mlflow_compat_smoke.py"
 
 jobs:
   smoke-matrix:
