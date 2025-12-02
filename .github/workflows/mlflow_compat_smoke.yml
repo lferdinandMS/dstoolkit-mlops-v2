@@ -11,7 +11,7 @@ on:
       azureml_mlflow_versions:
         description: "Comma-separated azureml-mlflow versions to test"
         required: false
-        default: "1.60.0,1.83.0"
+        default: "1.58.0,1.60.0,1.61.0"
   # Also run when this workflow or the smoke script changes on any branch,
   # so it appears in Actions even before merging to default branch.
   push:
@@ -30,8 +30,9 @@ jobs:
       fail-fast: false
       matrix:
         azureml_mlflow:
+          - 1.58.0
           - 1.60.0
-          - 1.83.0
+          - 1.61.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +45,15 @@ jobs:
       - name: Install dependencies for ${{ matrix.azureml_mlflow }}
         run: |
           python -m pip install --upgrade pip
+          echo "Available azureml-mlflow versions on index:"
+          python - << 'PY'
+          import json, subprocess
+          try:
+            out = subprocess.check_output(["python","-m","pip","index","versions","azureml-mlflow"], text=True)
+            print(out)
+          except Exception as e:
+            print("pip index failed:", e)
+          PY
           pip install "mlflow-skinny==${{ github.event.inputs.mlflow_version || '2.14.3' }}"
           pip install "azureml-mlflow==${{ matrix.azureml_mlflow }}"
 
@@ -64,7 +74,7 @@ jobs:
           # Otherwise, fall back to the lowest in the set. This is a heuristic – refine if needed.
           set -e
           # Default ordered list must match the matrix order
-          VERSIONS=(1.60.0 1.83.0)
+          VERSIONS=(1.58.0 1.60.0 1.61.0)
           if [ "${{ needs.smoke-matrix.result }}" = "success" ]; then
             # prefer the last (highest) as winner
             WINNER=${VERSIONS[-1]}
