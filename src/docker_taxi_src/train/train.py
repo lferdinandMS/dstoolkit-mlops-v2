@@ -100,6 +100,11 @@ def split(train_data):
         ]
     ]
 
+    # Encode non-numeric columns to numeric (e.g., vendor, store_forward)
+    for col in x.columns:
+        if x[col].dtype == object:
+            x[col] = x[col].astype("category").cat.codes
+
     # Split the data into train and test sets
     train_x, test_x, trainy, testy = train_test_split(
         x, y, test_size=0.3, random_state=42
@@ -122,6 +127,11 @@ def train_model(train_x, trainy):
     None
     """
     mlflow.autolog()
+    # Ensure MLflow tracking is hooked into Azure ML in all contexts
+    try:
+        mlflow.set_tracking_uri(mlflow.get_tracking_uri())
+    except Exception as _e:
+        print(f"mlflow.set_tracking_uri hook failed: {_e}")
     # Train a Linear Regression Model with the train set
     with mlflow.start_run() as run:
         model = LinearRegression().fit(train_x, trainy)
@@ -130,6 +140,11 @@ def train_model(train_x, trainy):
         # Output the model, metadata and test data
         run_id = mlflow.active_run().info.run_id
         model_uri = f"runs:/{run_id}/model"
+        # Log MLflow model artifact so register can find runs:/<run_id>/model
+        try:
+            mlflow.sklearn.log_model(model, "model")
+        except Exception as log_err:
+            print(f"mlflow.sklearn.log_model failed: {log_err}")
         model_data = {"run_id": run.info.run_id, "run_uri": model_uri}
         with open(args.model_metadata, "w") as json_file:
             json.dump(model_data, json_file, indent=4)
