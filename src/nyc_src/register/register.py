@@ -58,38 +58,16 @@ def _set_model_tags(model_name: str, version: str, tags: dict) -> None:
         client.set_model_version_tag(name=model_name, version=version, key=k, value=v)
 
 
-def main(model_metadata: str, model_name: str, score_report: str, build_reference: str) -> None:
-    """Register an MLflow model version for a given run and tag it.
-
-    Exits with non-zero status when prerequisites are not met or operations fail.
-    Prints detailed diagnostics to aid troubleshooting in CI environments.
-    """
-    _print_versions()
-
-    # Ensure MLflow tracking is hooked into Azure ML
+def _get_tracking_uri_safe() -> str | None:
     try:
-        mlflow.set_tracking_uri(mlflow.get_tracking_uri())
-    except Exception as _e:  # noqa: BLE001
-        print(f"mlflow.set_tracking_uri hook failed: {_e}")
+        return mlflow.get_tracking_uri()
+    except Exception:  # noqa: BLE001
+        return None
 
-    meta = _read_json(Path(model_metadata))
-    run_uri = meta["run_uri"]
+
+def _print_registration_diagnostics(model_name: str, run_uri: str) -> None:
     run_id, parsed_subpath = _parse_run_uri(run_uri)
-
-    score = _read_json(Path(score_report) / "score.txt")
-    tags = {
-        "mse": score.get("mse"),
-        "coff": score.get("coff"),
-        "cod": score.get("cod"),
-        "build_id": build_reference,
-    }
-
-    tracking_uri = None
-    try:
-        tracking_uri = mlflow.get_tracking_uri()
-    except Exception:
-        tracking_uri = None
-
+    tracking_uri = _get_tracking_uri_safe()
     print("-" * 50)
     print("REGISTRATION DIAGNOSTICS")
     print(f"tracking_uri: {tracking_uri}")
@@ -100,22 +78,28 @@ def main(model_metadata: str, model_name: str, score_report: str, build_referenc
     print(f"MLFLOW_TRACKING_URI env: {os.environ.get('MLFLOW_TRACKING_URI')}")
     print("-" * 50)
 
-    if not _artifact_exists_for_run(run_uri, artifact_subpath="model"):
-        try:
-            client = mlflow.MlflowClient()
-            root_list = client.list_artifacts(run_id) if run_id else []
-            model_list = client.list_artifacts(run_id, path="model") if run_id else []
-            print("Artifacts at run root:")
-            for a in root_list:
-                print(f"  - {a.path}")
-            print("Artifacts under 'model':")
-            for a in model_list:
-                print(f"  - {a.path}")
-        except Exception as diag_err:  # noqa: BLE001
-            print(f"Artifact diagnostic listing failed: {diag_err}")
-        print("ERROR: No 'model' artifact found for run; failing registration.")
-        sys.exit(2)
 
+def _ensure_artifact_or_exit(run_uri: str) -> None:
+    if _artifact_exists_for_run(run_uri, artifact_subpath="model"):
+        return
+    run_id, _ = _parse_run_uri(run_uri)
+    try:
+        client = mlflow.MlflowClient()
+        root_list = client.list_artifacts(run_id) if run_id else []
+        model_list = client.list_artifacts(run_id, path="model") if run_id else []
+        print("Artifacts at run root:")
+        for a in root_list:
+            print(f"  - {a.path}")
+        print("Artifacts under 'model':")
+        for a in model_list:
+            print(f"  - {a.path}")
+    except Exception as diag_err:  # noqa: BLE001
+        print(f"Artifact diagnostic listing failed: {diag_err}")
+    print("ERROR: No 'model' artifact found for run; failing registration.")
+    sys.exit(2)
+
+
+def _register_and_tag(run_uri: str, model_name: str, tags: dict) -> None:
     try:
         mv = mlflow.register_model(run_uri, model_name)
         _set_model_tags(model_name, mv.version, tags)
@@ -127,6 +111,29 @@ def main(model_metadata: str, model_name: str, score_report: str, build_referenc
         print(traceback.format_exc())
         print("TRACEBACK END")
         sys.exit(1)
+
+
+def main(model_metadata: str, model_name: str, score_report: str, build_reference: str) -> None:
+    _print_versions()
+    try:
+        mlflow.set_tracking_uri(mlflow.get_tracking_uri())
+    except Exception as _e:  # noqa: BLE001
+        print(f"mlflow.set_tracking_uri hook failed: {_e}")
+
+    meta = _read_json(Path(model_metadata))
+    run_uri = meta["run_uri"]
+
+    score = _read_json(Path(score_report) / "score.txt")
+    tags = {
+        "mse": score.get("mse"),
+        "coff": score.get("coff"),
+        "cod": score.get("cod"),
+        "build_id": build_reference,
+    }
+
+    _print_registration_diagnostics(model_name, run_uri)
+    _ensure_artifact_or_exit(run_uri)
+    _register_and_tag(run_uri, model_name, tags)
 
 
 if __name__ == "__main__":
