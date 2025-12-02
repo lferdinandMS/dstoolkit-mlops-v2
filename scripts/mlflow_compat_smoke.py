@@ -60,20 +60,20 @@ def main() -> int:
                 print("No artifacts found under 'model' path")
                 return 2
 
-        # Explicitly exercise azureml ArtifactRepository constructor to detect
-        # the positional-argument __init__ mismatch without requiring Azure.
-        # If the constructor signature is incompatible with the installed mlflow,
-        # mlflow will raise a TypeError at instantiation time.
+        # Explicitly exercise azureml ArtifactRepository constructor only to detect
+        # signature mismatches. We instantiate via get_artifact_repository but do not
+        # call any methods, avoiding network/URI validation.
         test_uri = (
             "azureml://subscriptions/00000000-0000-0000-0000-000000000000/"
             "resourceGroups/rg/providers/Microsoft.MachineLearningServices/"
             "workspaces/ws/experiments/exp/runs/run/artifacts/model"
         )
         try:
-            # This will instantiate the azureml ArtifactRepository via the plugin.
-            # Network/path errors are expected in CI; we only fail on constructor TypeError.
-            mlfa.list_artifacts(artifact_uri=test_uri)
-            print("azureml:// artifact repository instantiated (no constructor error)")
+            repo = mlfa.get_artifact_repository(test_uri)  # type: ignore[attr-defined]
+            print(
+                "azureml:// artifact repository instantiated:",
+                repo.__class__.__name__,
+            )
         except TypeError as te:
             msg = str(te)
             print("azureml:// artifact repository TypeError:", msg)
@@ -83,8 +83,10 @@ def main() -> int:
             # Unknown TypeError: treat as failure to be safe
             return 3
         except Exception as e:
-            # Any other exception implies constructor likely succeeded; ignore.
-            print("azureml:// list_artifacts raised non-constructor error (ignored):", repr(e))
+            # Any other exception during instantiation is considered a failure since
+            # we are only constructing, not performing operations.
+            print("azureml:// artifact repository instantiation failed:", repr(e))
+            return 4
 
         return 0
     except Exception as e:
