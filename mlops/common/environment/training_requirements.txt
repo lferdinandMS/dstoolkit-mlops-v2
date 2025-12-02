@@ -2,7 +2,7 @@
 # Python runtime: 3.10.x
 
 # Core MLflow + AzureML plugin
-mlflow==2.14.3
+mlflow-skinny==2.14.3
 azureml-mlflow>=1.6.3,<2.0.0
 
 # Data + model libs (match existing project expectations)

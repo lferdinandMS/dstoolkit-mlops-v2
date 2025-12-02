@@ -4,12 +4,12 @@ azure-identity>=1.15.0
 azure-keyvault-secrets>=4.7.0
 # Bump to a version compatible with psutil>=5.9 (required by azure-cli-core)
 azureml-inference-server-http>=0.8.0,<1.0.0
-azureml-mlflow>=1.63.0,<2.0.0
+azureml-mlflow==1.60.0
 flake8-docstrings==1.7.0
 flake8==6.1.0
 flake8-docstrings==1.7.0
 isort==5.13.2
-mlflow==2.14.3
+mlflow-skinny==2.14.3
 pandas==2.2.3
 numpy==1.26.4; python_version < "3.11"
 numpy==2.3.5; python_version >= "3.11"
