@@ -41,6 +41,12 @@ RUN groupadd --gid $USER_GID $USERNAME \
 # Switch to non-root user
 USER $USERNAME
 
-# Install python requirements
+# Create Python 3.10 conda env and install requirements
 COPY ./requirements.txt .
-RUN pip install --user -r requirements.txt
+RUN conda create -y -n prs-env python=3.10 pip \
+    && conda clean -afy \
+    && conda run -n prs-env pip install -r requirements.txt \
+    && echo "conda activate prs-env" >> /home/$USERNAME/.bashrc
+
+ENV CONDA_DEFAULT_ENV=prs-env
+ENV PATH=/home/$USERNAME/.conda/envs/prs-env/bin:$PATH
