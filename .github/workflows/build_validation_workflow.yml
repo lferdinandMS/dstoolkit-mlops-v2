@@ -45,7 +45,7 @@ jobs:
       - name: Show Package Versions
         shell: bash
         run: |
-            python -m pip show mlflow azureml-mlflow
+            python -m pip show mlflow-skinny azureml-mlflow
             python -c "import mlflow-skinny; print('mlflow-skinny:', mlflow-skinny.__version__)"
             python -c "import azureml-mlflow; print('azureml-mlflow:', azureml-mlflow.__version__)"
 
