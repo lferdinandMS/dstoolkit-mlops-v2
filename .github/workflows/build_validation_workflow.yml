@@ -46,7 +46,8 @@ jobs:
         shell: bash
         run: |
             python -m pip show mlflow azureml-mlflow
-            python -c "import mlflow; print('mlflow:', mlflow.__version__)"
+            python -c "import mlflow-skinny; print('mlflow-skinny:', mlflow-skinny.__version__)"
+            python -c "import azureml-mlflow; print('azureml-mlflow:', azureml-mlflow.__version__)"
 
       - name: Lint Code
         run: flake8
