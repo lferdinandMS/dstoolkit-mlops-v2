@@ -29,3 +29,4 @@ jobs:
     with:
       exec_environment: ${{ inputs.exec_environment || 'ci' }}
       model_type: ${{ inputs.model_type || 'nyc_taxi' }}
+      is_docker: ${{ inputs.is_docker }}
