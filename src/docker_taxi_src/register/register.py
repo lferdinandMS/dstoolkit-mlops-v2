@@ -14,7 +14,7 @@ def _print_versions() -> None:
     print("PACKAGE VERSIONS:")
     try:
 
-        print(f"mlflow: {metadata.version('mlflow')}")
+        print(f"mlflow: {metadata.version('mlflow-skinny')}")
         try:
             print(f"azureml-mlflow: {metadata.version('azureml-mlflow')}")
         except metadata.PackageNotFoundError:
