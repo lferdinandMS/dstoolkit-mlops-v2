@@ -11,6 +11,23 @@ on:
       - 'model/docker_taxi/**'
       - 'src/docker_taxi_src/**'
       - 'test/docker_taxi/**'
+  workflow_dispatch:
+    inputs:
+      exec_environment:
+        type: string
+        description: "The environment to run the workflow in"
+        required: true
+        default: "pr"
+      model_type:
+        type: string
+        description: "The type of model to run the workflow for"
+        required: true
+        default: "docker_taxi"
+      is_docker:
+        type: boolean
+        description: "Is Docker used for build validation?"
+        required: true
+        default: true
   workflow_call:
     inputs:
       exec_environment:
@@ -37,4 +54,4 @@ jobs:
     with:
       exec_environment: ${{ inputs.exec_environment || 'pr' }}
       model_type: ${{ inputs.model_type || 'docker_taxi' }}
-      is_docker: ${{ inputs.is_docker || true }}
+      is_docker: ${{ github.event_name == 'pull_request' && true || inputs.is_docker }}
