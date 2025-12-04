@@ -94,7 +94,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -105,16 +107,22 @@ jobs:
         run: |
           set -e
           python -m pip install --upgrade pip
-          python -m pip install --upgrade \
-            -r .github/requirements/build_validation_requirements.txt \
-            --extra-index-url https://azuremlsdktestpypi.azureedge.net/sdk-cli-v2/azureml-mlflow/ \
-            --trusted-host azuremlsdktestpypi.azureedge.net
+          python -m pip install --upgrade --no-cache-dir \
+            -r .github/requirements/build_validation_requirements.txt
 
       - name: Show Package Versions
         shell: bash
         run: |
-            python -m pip show mlflow azureml-mlflow
-            python -c "import mlflow; print('mlflow:', mlflow.__version__)"
+          python -m pip show mlflow-skinny azureml-mlflow || true
+          python -c "import importlib.metadata as m; print('mlflow-skinny:', m.version('mlflow-skinny'))" || true
+          python -c "import importlib.metadata as m; print('azureml-mlflow:', m.version('azureml-mlflow'))" || true
+
+      - name: Preview updated smoke script
+        shell: bash
+        run: |
+          git rev-parse HEAD
+          git --no-pager log -1 --oneline --decorate
+          sed -n '1,120p' scripts/mlflow_compat_smoke.py || true
 
       - name: Lint Code
         run: flake8
