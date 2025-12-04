@@ -22,7 +22,7 @@ env:
 
 jobs:
   run-unit-tests-docker:
-    if: ${{ inputs.is_docker == true }}
+    if: ${{ inputs.is_docker }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -90,7 +90,7 @@ jobs:
           path: "**/test-*.xml"
 
   run-unit-tests:
-    if: ${{ inputs.is_docker == false }}
+    if: ${{ !inputs.is_docker }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
