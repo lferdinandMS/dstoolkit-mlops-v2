@@ -15,7 +15,7 @@ on:
       is_docker:
           type: boolean
           description: "Is Docker used for build validation?"
-          required: false
+          required: true
           default: false
 
 env:
