@@ -14,6 +14,9 @@ ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
+# Set timezone non-interactively
+ENV DEBIAN_FRONTEND=noninteractive TZ=UTC
+
 # Install the required packages
 RUN apt-get update \
     && apt-get install -y ffmpeg libsm6 libxext6 git ninja-build libglib2.0-0 libxrender-dev libcurl4 openssl unzip wget curl \
