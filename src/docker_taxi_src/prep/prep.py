@@ -1,10 +1,10 @@
 """
-This module processes and prepares taxi data for machine learning analysis.
+This module is designed to preprocess taxi data for the Azure Machine Learning London Taxi tutorial.
 
-The module includes functionalities for reading raw taxi data, cleaning it,
-and transforming it into a format suitable for machine learning models. It specifically
-handles green and yellow taxi data, applying predefined transformations and combining
-the datasets. The output is saved as prepared data files for subsequent analysis.
+It includes functions for reading raw taxi data (both green and yellow taxi data),
+cleaning it, and transforming it into a format suitable for machine learning modeling.
+The module focuses on selecting useful columns, renaming them as per tutorial specifications,
+and concatenating the green and yellow taxi data into a single dataset.
 """
 
 import argparse
@@ -130,6 +130,8 @@ def data_prep(green_data, yellow_data, prep_data):
 
 # These functions ensure that null data is removed from the dataset,
 # which will help increase machine learning model accuracy.
+
+
 def get_dict(dict_str):
     """
     Ensure that null data is removed from the dataset to increase machine learning model accuracy.

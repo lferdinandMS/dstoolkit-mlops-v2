@@ -10,20 +10,22 @@ from importlib import metadata
 
 
 def _print_versions() -> None:
+    """Emit versions of key packages (mlflow, azureml-mlflow) for debugging."""
     print("=" * 50)
     print("PACKAGE VERSIONS:")
     try:
-        print(f"mlflow: {metadata.version('mlflow-skinny')}")
+        print(f"mlflow-skinny: {metadata.version('mlflow-skinny')}")
         try:
             print(f"azureml-mlflow: {metadata.version('azureml-mlflow')}")
         except metadata.PackageNotFoundError:
             print("azureml-mlflow: not-installed (curated plugin may be present)")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Could not get package versions: {e}")
     print("=" * 50)
 
 
 def _read_json(path: Path) -> dict:
+    """Read a JSON file and return its decoded dictionary."""
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -39,6 +41,15 @@ def _parse_run_uri(run_uri: str):
 
 
 def _artifact_exists_for_run(run_uri: str, artifact_subpath: str = "model") -> bool:
+    """Check that an artifact subpath exists under the given MLflow run URI.
+
+    Parameters:
+        run_uri: Full MLflow runs URI (e.g. runs:/<run_id>/model).
+        artifact_subpath: Subpath to verify (default 'model').
+
+    Returns:
+        True if the artifact directory contains at least one entry; False otherwise.
+    """
     run_id, subpath = _parse_run_uri(run_uri)
     if not run_id:
         return False
@@ -52,6 +63,7 @@ def _artifact_exists_for_run(run_uri: str, artifact_subpath: str = "model") -> b
 
 
 def _set_model_tags(model_name: str, version: str, tags: dict) -> None:
+    """Apply key/value tags to a specific MLflow model version."""
     client = mlflow.MlflowClient()
     for k, v in tags.items():
         client.set_model_version_tag(name=model_name, version=version, key=k, value=v)
