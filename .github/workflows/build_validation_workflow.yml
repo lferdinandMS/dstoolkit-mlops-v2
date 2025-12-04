@@ -26,7 +26,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          clean: true
+          submodules: false
+
+
+      - name: Show commit and branch
+        run: |
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          git rev-parse HEAD
+          git --no-pager log -1 --oneline --decorate
+
 
       - uses: actions/setup-python@v5
         with:
@@ -42,12 +54,12 @@ jobs:
             --extra-index-url https://azuremlsdktestpypi.azureedge.net/sdk-cli-v2/azureml-mlflow/ \
             --trusted-host azuremlsdktestpypi.azureedge.net
 
-      # - name: Show Package Versions
-      #   shell: bash
-      #   run: |
-      #       python -m pip show mlflow-skinny azureml-mlflow
-      #       python -c "import mlflow-skinny; print('mlflow-skinny:', mlflow-skinny.__version__)"
-      #       python -c "import azureml-mlflow; print('azureml-mlflow:', azureml-mlflow.__version__)"
+      - name: Show Package Versions
+        shell: bash
+        run: |
+            python -m pip show mlflow-skinny azureml-mlflow
+            python -c "import mlflow-skinny; print('mlflow-skinny:', mlflow-skinny.__version__)"
+            python -c "import azureml-mlflow; print('azureml-mlflow:', azureml-mlflow.__version__)"
 
       - name: Lint Code
         run: flake8
