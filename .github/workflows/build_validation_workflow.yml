@@ -64,6 +64,19 @@ jobs:
       - name: Lint Code
         run: flake8
 
+      - name: Free up disk space
+        shell: bash
+        run: |
+          echo "Available disk space before cleanup:"
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker system prune -af
+          echo "Available disk space after cleanup:"
+          df -h
+
       - name: Build Docker container
         shell: bash
         run: |
