@@ -61,13 +61,11 @@ def main():
     )
 
     # Re-authenticate after long-running batch job to avoid token expiration
-    from azure.identity import DefaultAzureCredential
-    fresh_credential = DefaultAzureCredential()
     fresh_ml_client = MLClient(
-        credential=fresh_credential,
-        subscription_id=config.subscription_id,
-        resource_group_name=config.resource_group_name,
-        workspace_name=config.workspace_name,
+        DefaultAzureCredential(),
+        config.aml_config["subscription_id"],
+        config.aml_config["resource_group_name"],
+        config.aml_config["workspace_name"],
     )
 
     fresh_ml_client.jobs.download(name=scoring_job.name, download_path=".", output_name="score")
