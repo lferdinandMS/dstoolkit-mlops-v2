@@ -110,10 +110,10 @@ def register(args, model_name: str):
     subscription_id = os.environ.get("AZUREML_ARM_SUBSCRIPTION")
     resource_group = os.environ.get("AZUREML_ARM_RESOURCEGROUP")
     workspace_name = os.environ.get("AZUREML_ARM_WORKSPACE_NAME")
-    
+
     if not all([subscription_id, resource_group, workspace_name]):
         raise ValueError("Unable to retrieve workspace context from environment variables")
-    
+
     ml_client = MLClient(
         DefaultAzureCredential(),
         subscription_id=subscription_id,
@@ -130,7 +130,7 @@ def register(args, model_name: str):
         description="A next token prediction model using the prior n-grams to infer the next word.",
         type="custom_model"
     )
-    
+
     registered_model = ml_client.models.create_or_update(model)
 
     logger.info(
