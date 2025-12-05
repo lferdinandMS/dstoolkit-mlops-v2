@@ -20,7 +20,7 @@ from azure.ai.ml import Input, MLClient, load_component
 from azure.ai.ml.dsl import pipeline
 from azure.identity import DefaultAzureCredential
 
-from mlops.common.config_utils import MLOpsConfig
+from mlops.common.config_utils import MLOpsConfig, DataAssetProvider
 from mlops.common.get_compute import get_compute
 from mlops.common.get_environment import get_environment
 from mlops.common.naming_utils import (
@@ -106,9 +106,16 @@ def construct_pipeline(
     Returns:
         pipeline_job: The constructed pipeline job.
     """
-    registered_data_asset = ml_client.data.get(name=dataset_uri_folder, label="latest")
-
-    training_dataset_type = registered_data_asset.tags.get("dataset_type", "NotDefined")
+    # Use DataAssetProvider for flexible data loading with synthetic fallback
+    data_provider = DataAssetProvider(ml_client, pipeline_config={
+        "dataset_uri_folder": dataset_uri_folder,
+        "model_type": "sequence_model",
+        "allow_synthetic_fallback": True,
+        "synthetic_data_config": {"num_sequences": 100, "sequence_length": 20}
+    })
+    
+    dataset_id = data_provider.get_asset_id_for_pipeline(dataset_uri_folder)
+    training_dataset_type = "synthetic" if dataset_id.startswith("outputs/") else "registered"
 
     parent_dir = os.path.join(os.getcwd(), "mlops/sequence_model/components")
 

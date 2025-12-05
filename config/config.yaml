@@ -32,6 +32,11 @@ pipeline_configs:
     conda_path: mlops/sequence_model/environment/conda.yml
     aml_env_name: sequence-model
     dataset_uri_folder: sequence_model_data
+    model_type: sequence_model
+    allow_synthetic_fallback: true
+    synthetic_data_config:
+      num_sequences: 100
+      sequence_length: 20
 
   docker_taxi_pr: 
     cluster_region: eastus
@@ -65,6 +70,11 @@ pipeline_configs:
     conda_path: mlops/sequence_model/environment/conda.yml
     aml_env_name: sequence-model
     dataset_uri_folder: sequence_model_data
+    model_type: sequence_model
+    allow_synthetic_fallback: true
+    synthetic_data_config:
+      num_sequences: 100
+      sequence_length: 20
 
   docker_taxi_dev: 
     cluster_region: eastus

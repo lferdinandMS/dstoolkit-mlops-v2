@@ -1,9 +1,100 @@
 """Configuration utils to load config from yaml/json."""
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pathlib import Path
 from dotenv import load_dotenv
 import yaml
+
+
+class DataAssetProvider:
+    """
+    Provides consistent data asset access with fallback to synthetic data generation.
+    
+    This class handles:
+    - Loading registered data assets from Azure ML
+    - Falling back to synthetic data if asset doesn't exist
+    - Allowing models to work without pre-registered datasets
+    """
+
+    def __init__(self, ml_client, pipeline_config: Dict[str, Any]):
+        """
+        Initialize DataAssetProvider.
+        
+        Args:
+            ml_client: Azure ML MLClient instance
+            pipeline_config: Pipeline configuration dict from config.yaml
+        """
+        self.ml_client = ml_client
+        self.pipeline_config = pipeline_config
+        self.allow_synthetic_fallback = pipeline_config.get("allow_synthetic_fallback", False)
+        self.synthetic_config = pipeline_config.get("synthetic_data_config", {})
+
+    def get_data_asset(self, asset_name: str, asset_type: str = "uri_folder"):
+        """
+        Get data asset with fallback to synthetic data.
+        
+        Args:
+            asset_name: Name of the registered data asset
+            asset_type: Type of asset (uri_folder, uri_file, mltable)
+            
+        Returns:
+            Data asset or synthetic data path
+            
+        Raises:
+            ValueError: If asset not found and synthetic fallback not allowed
+        """
+        try:
+            registered_asset = self.ml_client.data.get(name=asset_name, label="latest")
+            return registered_asset
+        except Exception as e:
+            if self.allow_synthetic_fallback:
+                return self._generate_synthetic_data()
+            else:
+                raise ValueError(
+                    f"Data asset '{asset_name}' not found and synthetic fallback not enabled. "
+                    f"Either register the data asset or set 'allow_synthetic_fallback: true' in config.yaml"
+                ) from e
+
+    def _generate_synthetic_data(self) -> str:
+        """
+        Generate synthetic data based on model type.
+        
+        Returns:
+            Path to generated synthetic data
+        """
+        model_type = self.pipeline_config.get("model_type")
+        
+        if model_type == "sequence_model":
+            from src.sequence_model.common.synthetic_data import save_synthetic_data
+            
+            num_sequences = self.synthetic_config.get("num_sequences", 100)
+            synthetic_path = os.path.join(os.getcwd(), "outputs/synthetic_data")
+            save_synthetic_data(synthetic_path, num_sequences=num_sequences)
+            return synthetic_path
+        else:
+            raise NotImplementedError(
+                f"Synthetic data generation not implemented for model_type: {model_type}"
+            )
+
+    def get_asset_id_for_pipeline(self, asset_name: str) -> str:
+        """
+        Get asset ID suitable for use in AML pipeline Input.
+        
+        Args:
+            asset_name: Name of the registered data asset
+            
+        Returns:
+            Asset ID (registered) or local path (synthetic)
+        """
+        try:
+            asset = self.get_data_asset(asset_name)
+            # If it's a registered asset, use its ID
+            return asset.id if hasattr(asset, 'id') else asset
+        except ValueError:
+            # If fallback is enabled, get synthetic path
+            if self.allow_synthetic_fallback:
+                return self._generate_synthetic_data()
+            raise
 
 
 class MLOpsConfig:
