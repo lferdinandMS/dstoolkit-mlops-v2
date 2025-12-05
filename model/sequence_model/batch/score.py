@@ -55,10 +55,10 @@ def init():
 
 def run(mini_batch: List[str]) -> pd.DataFrame:
     """
-    Execure inferencing logic on a request.
+    Execute inferencing logic on a request.
 
-    In the example we extract the data from the json input and call the scikit-learn model's predict()
-    method and return the result back.
+    Processes each file in the mini batch, makes predictions for each line,
+    and returns a DataFrame with input sequences and predicted next words.
     """
     results = []
 
@@ -74,10 +74,16 @@ def run(mini_batch: List[str]) -> pd.DataFrame:
                 preds = tokenizer.dec(result)
                 print("Input data:", line.strip())
                 print("Possible choices for next word:", preds)
+                
+                # Store actual prediction results
+                results.append({
+                    "file": raw_data,
+                    "input_sequence": line.strip(),
+                    "prediction_1": preds[0] if len(preds) > 0 else None,
+                    "prediction_2": preds[1] if len(preds) > 1 else None,
+                    "prediction_3": preds[2] if len(preds) > 2 else None
+                })
 
         print(f"File name: {raw_data} has been processed")
-
-        # You need to implement a better way to combine results from the model depends on your desired output
-        results.append(f"File name: {raw_data} has been processed")
 
     return pd.DataFrame(results)
