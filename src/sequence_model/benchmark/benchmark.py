@@ -118,11 +118,11 @@ def check_prior_model_accuracy(model_name: str, current_accuracy: float) -> bool
     subscription_id = os.environ.get("AZUREML_ARM_SUBSCRIPTION")
     resource_group = os.environ.get("AZUREML_ARM_RESOURCEGROUP")
     workspace_name = os.environ.get("AZUREML_ARM_WORKSPACE_NAME")
-    
+
     if not all([subscription_id, resource_group, workspace_name]):
         logger.warning("Unable to retrieve workspace context. Skipping prior model comparison.")
         return True
-    
+
     try:
         ml_client = MLClient(
             DefaultAzureCredential(),
@@ -130,19 +130,19 @@ def check_prior_model_accuracy(model_name: str, current_accuracy: float) -> bool
             resource_group_name=resource_group,
             workspace_name=workspace_name
         )
-        
+
         # Get all versions of the model
         models = ml_client.models.list(name=model_name)
-        
+
         model_accuracies: list[float] = [
             float(model.properties.get("accuracy", 0.0))
             for model in models
         ]
-        
+
         for accuracy in model_accuracies:
             if current_accuracy < accuracy:
                 return False
-        
+
         return True
     except Exception as e:
         logger.warning(f"Error comparing to prior models: {e}. Assuming current model is best.")
