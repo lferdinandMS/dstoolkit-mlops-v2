@@ -1,0 +1,29 @@
+{
+    // Python linting configuration
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+        "--max-line-length=120",
+        "--extend-ignore=E203,W503"
+    ],
+    "python.linting.lintOnSave": true,
+    
+    // Show lint errors immediately while typing
+    "python.linting.lintOnChange": true,
+    
+    // Format on save using black
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+        "--line-length=120"
+    ],
+    
+    // Trim trailing whitespace on save
+    "files.trimTrailingWhitespace": true,
+    
+    // Python interpreter
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv310/Scripts/python.exe",
+    
+    // Show problems inline
+    "problems.decorations.enabled": true
+}
