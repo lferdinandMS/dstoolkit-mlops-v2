@@ -119,6 +119,7 @@ if __name__ == "__main__":
     # Input paths
     model_path = pathlib.Path(model_root, "model_dict.pkl")
     tokenizer_path = pathlib.Path(tokenizer_root, "tokenizer.json")
+    # Load test data (separate from training data for proper evaluation)
     test_data_path = pathlib.Path(args.dataset_folder, "test.pkl")
 
     # Output paths
@@ -145,6 +146,11 @@ if __name__ == "__main__":
     logger.info("Load data.")
     with open(test_data_path, "rb") as f:
         test_data = pickle.load(f)
+
+    # Flatten the data if it's a list of sequences (e.g., from synthetic data generator)
+    if isinstance(test_data, list) and len(test_data) > 0 and isinstance(test_data[0], list):
+        logger.info("Flattening list of sequences into flat token list for prediction.")
+        test_data = [token for sequence in test_data for token in sequence]
 
     # Tokenize data
     logger.info("Tokenizing test data.")

@@ -37,22 +37,34 @@ def generate_synthetic_text_data(
 
 def save_synthetic_data(output_path: str, num_sequences: int = 100, sequence_length: int = 20) -> None:
     """
-    Generate and save synthetic training data to pickle file.
+    Generate and save synthetic training and test data with proper train/test split.
 
     Args:
-        output_path: Path where to save the pickled data
-        num_sequences: Number of sequences to generate
+        output_path: Path where to save the training pickle data (train.pkl)
+        num_sequences: Total number of sequences to generate (will be split 80/20 train/test)
         sequence_length: Length of each sequence
     """
     # Ensure output directory exists
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate synthetic data
-    data = generate_synthetic_text_data(num_sequences=num_sequences, sequence_length=sequence_length)
+    # Generate all synthetic data from a single distribution
+    all_data = generate_synthetic_text_data(num_sequences=num_sequences, sequence_length=sequence_length)
+    
+    # Split into train (80%) and test (20%)
+    split_idx = int(len(all_data) * 0.8)
+    train_data = all_data[:split_idx]
+    test_data = all_data[split_idx:]
 
-    # Save to pickle file
+    # Save training data to pickle file
     with open(output_path, "wb") as f:
-        pickle.dump(data, f)
+        pickle.dump(train_data, f)
 
-    print(f"Synthetic data saved to {output_path}")
+    print(f"Synthetic training data saved to {output_path} ({len(train_data)} sequences)")
+    
+    # Save test data to separate file
+    test_path = output_dir / "test.pkl"
+    with open(test_path, "wb") as f:
+        pickle.dump(test_data, f)
+    
+    print(f"Synthetic test data saved to {test_path} ({len(test_data)} sequences)")
