@@ -6,7 +6,10 @@ import logging
 import pathlib
 import shutil
 import yaml
-from azureml.core.run import Run
+import os
+from azure.ai.ml import MLClient
+from azure.ai.ml.entities import Model
+from azure.identity import DefaultAzureCredential
 
 import src.sequence_model.common.mlflow_ext as mlflow
 
@@ -96,29 +99,42 @@ def assemble_outputs(args):
     return artifacts_folder, model_registration_folder
 
 
-def register(args, model_name: str):  # #model_folder: str, score_report_path: str):
-    """Register model.
+def register(args, model_name: str):
+    """Register model using Azure ML SDK v2.
 
     Args:
-        model_name (str): Name of model.
-        model_path (str): Path to model.
-        score_report_path (str): Path to model scoring report.
+        args: Command-line arguments
+        model_name (str): Name of model to register.
     """
-    run = Run.get_context()
-
-    artifacts_folder, _ = assemble_outputs(args)
-
-    run = Run.get_context()
-    run.upload_folder("artifacts", str(artifacts_folder))
-
-    run.register_model(
-        model_path="artifacts/model_registration",
-        model_name=model_name,
-        description="A next token prediction model using the prior n-grams to infer the next word.",
+    # Get workspace context from environment variables
+    subscription_id = os.environ.get("AZUREML_ARM_SUBSCRIPTION")
+    resource_group = os.environ.get("AZUREML_ARM_RESOURCEGROUP")
+    workspace_name = os.environ.get("AZUREML_ARM_WORKSPACE_NAME")
+    
+    if not all([subscription_id, resource_group, workspace_name]):
+        raise ValueError("Unable to retrieve workspace context from environment variables")
+    
+    ml_client = MLClient(
+        DefaultAzureCredential(),
+        subscription_id=subscription_id,
+        resource_group_name=resource_group,
+        workspace_name=workspace_name
     )
 
+    artifacts_folder, model_registration_folder = assemble_outputs(args)
+
+    # Register model using SDK v2
+    model = Model(
+        path=str(model_registration_folder),
+        name=model_name,
+        description="A next token prediction model using the prior n-grams to infer the next word.",
+        type="custom_model"
+    )
+    
+    registered_model = ml_client.models.create_or_update(model)
+
     logger.info(
-        f"Completed model Registration! Registered version new version of model: {model_name}"
+        f"Completed model Registration! Registered version {registered_model.version} of model: {model_name}"
     )
 
 
