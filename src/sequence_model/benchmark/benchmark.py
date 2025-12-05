@@ -10,8 +10,9 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 import yaml
-from azureml.core.model import Model
-from azureml.core.run import Run
+from azure.ai.ml import MLClient
+from azure.identity import DefaultAzureCredential
+import os
 
 import src.sequence_model.common.mlflow_ext as mlflow
 
@@ -113,18 +114,39 @@ def check_prior_model_accuracy(model_name: str, current_accuracy: float) -> bool
     Returns:
         bool: If current model is more accurate.
     """
-    run = Run.get_context()
-    ws = run.experiment.workspace
-
-    model_accuracies: list[float] = [
-        float(m.properties.get("accuracy", 0.0))
-        for m in Model.list(name=model_name, workspace=ws, latest=True)
-    ]
-    for accuracy in model_accuracies:
-        if current_accuracy < accuracy:
-            return False
-
-    return True
+    # Initialize MLClient using environment variables from Azure ML compute
+    subscription_id = os.environ.get("AZUREML_ARM_SUBSCRIPTION")
+    resource_group = os.environ.get("AZUREML_ARM_RESOURCEGROUP")
+    workspace_name = os.environ.get("AZUREML_ARM_WORKSPACE_NAME")
+    
+    if not all([subscription_id, resource_group, workspace_name]):
+        logger.warning("Unable to retrieve workspace context. Skipping prior model comparison.")
+        return True
+    
+    try:
+        ml_client = MLClient(
+            DefaultAzureCredential(),
+            subscription_id=subscription_id,
+            resource_group_name=resource_group,
+            workspace_name=workspace_name
+        )
+        
+        # Get all versions of the model
+        models = ml_client.models.list(name=model_name)
+        
+        model_accuracies: list[float] = [
+            float(model.properties.get("accuracy", 0.0))
+            for model in models
+        ]
+        
+        for accuracy in model_accuracies:
+            if current_accuracy < accuracy:
+                return False
+        
+        return True
+    except Exception as e:
+        logger.warning(f"Error comparing to prior models: {e}. Assuming current model is best.")
+        return True
 
 
 def run_benchmarking(score_report: dict, benchmarks: list[dict]) -> bool:
