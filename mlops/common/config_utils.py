@@ -1,6 +1,6 @@
 """Configuration utils to load config from yaml/json."""
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
 import yaml
@@ -9,7 +9,7 @@ import yaml
 class DataAssetProvider:
     """
     Provides consistent data asset access with fallback to synthetic data generation.
-    
+
     This class handles:
     - Loading registered data assets from Azure ML
     - Falling back to synthetic data if asset doesn't exist
@@ -19,7 +19,7 @@ class DataAssetProvider:
     def __init__(self, ml_client, pipeline_config: Dict[str, Any]):
         """
         Initialize DataAssetProvider.
-        
+
         Args:
             ml_client: Azure ML MLClient instance
             pipeline_config: Pipeline configuration dict from config.yaml
@@ -32,14 +32,14 @@ class DataAssetProvider:
     def get_data_asset(self, asset_name: str, asset_type: str = "uri_folder"):
         """
         Get data asset with fallback to synthetic data.
-        
+
         Args:
             asset_name: Name of the registered data asset
             asset_type: Type of asset (uri_folder, uri_file, mltable)
-            
+
         Returns:
             Data asset or synthetic data path
-            
+
         Raises:
             ValueError: If asset not found and synthetic fallback not allowed
         """
@@ -58,15 +58,15 @@ class DataAssetProvider:
     def _generate_synthetic_data(self) -> str:
         """
         Generate synthetic data based on model type.
-        
+
         Returns:
             Path to generated synthetic data
         """
         model_type = self.pipeline_config.get("model_type")
-        
+
         if model_type == "sequence_model":
             from src.sequence_model.common.synthetic_data import save_synthetic_data
-            
+
             num_sequences = self.synthetic_config.get("num_sequences", 100)
             synthetic_path = os.path.join(os.getcwd(), "outputs/synthetic_data")
             save_synthetic_data(synthetic_path, num_sequences=num_sequences)
@@ -79,10 +79,10 @@ class DataAssetProvider:
     def get_asset_id_for_pipeline(self, asset_name: str) -> str:
         """
         Get asset ID suitable for use in AML pipeline Input.
-        
+
         Args:
             asset_name: Name of the registered data asset
-            
+
         Returns:
             Asset ID (registered) or local path (synthetic)
         """
