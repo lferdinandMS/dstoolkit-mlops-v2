@@ -134,6 +134,12 @@ if __name__ == "__main__":
     with open(train_data_path, "rb") as f:
         train_data = pickle.load(f)
 
+    # Flatten the data if it's a list of sequences (e.g., from synthetic data generator)
+    # The tokenizer expects a flat list of tokens, not a list of sequences
+    if isinstance(train_data, list) and len(train_data) > 0 and isinstance(train_data[0], list):
+        logger.info("Flattening list of sequences into flat token list for tokenizer.")
+        train_data = [token for sequence in train_data for token in sequence]
+
     # Train tokenizer
     logger.info("Training tokenizer.")
     tokenizer = Tokenizer()
