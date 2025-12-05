@@ -12,3 +12,5 @@ dependencies:
     - flake8
     - pandas
     - black
+    - azureml-core==1.60.0
+    - azureml-dataset-runtime[fuse]==1.60.0
