@@ -74,7 +74,7 @@ def run(mini_batch: List[str]) -> pd.DataFrame:
                 preds = tokenizer.dec(result)
                 print("Input data:", line.strip())
                 print("Possible choices for next word:", preds)
-                
+
                 # Store actual prediction results
                 results.append({
                     "file": raw_data,
