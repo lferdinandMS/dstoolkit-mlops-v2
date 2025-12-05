@@ -113,7 +113,7 @@ def construct_pipeline(
         "allow_synthetic_fallback": True,
         "synthetic_data_config": {"num_sequences": 100, "sequence_length": 20}
     })
-    
+
     dataset_id = data_provider.get_asset_id_for_pipeline(dataset_uri_folder)
     training_dataset_type = "synthetic" if dataset_id.startswith("outputs/") else "registered"
 
