@@ -53,6 +53,12 @@
             "DATA_PATH":"mlops/docker_taxi/data",
             "DATASET_NAME":"docker_taxi_training",
             "DATASET_DESC":"this dataset is for training models"
+        },
+        {
+            "DATA_PURPOSE": "batch_test_data",
+            "DATA_PATH":"model/sequence_model/batch_test_data",
+            "DATASET_NAME":"sequence_model_batch_test",
+            "DATASET_DESC":"this dataset is for testing sequence model batch deployments"
         }
     ]
 }
