@@ -69,15 +69,15 @@ class DataAssetProvider:
 
             num_sequences = self.synthetic_config.get("num_sequences", 100)
             sequence_length = self.synthetic_config.get("sequence_length", 20)
-            
+
             # Create directory for synthetic data
             synthetic_dir = os.path.abspath(os.path.join(os.getcwd(), "outputs/synthetic_data"))
             os.makedirs(synthetic_dir, exist_ok=True)
-            
+
             # Save pickle file inside the directory
             pickle_path = os.path.join(synthetic_dir, "train.pkl")
             save_synthetic_data(pickle_path, num_sequences=num_sequences, sequence_length=sequence_length)
-            
+
             return synthetic_dir
         else:
             raise NotImplementedError(
