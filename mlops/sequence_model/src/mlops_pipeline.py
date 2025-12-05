@@ -145,7 +145,7 @@ def construct_pipeline(
     gl_pipeline_components.append(register_model_cmp)
 
     pipeline_job = sequence_model_pipeline(
-        pipeline_job_input=Input(type="uri_folder", path=registered_data_asset.id),
+        pipeline_job_input=Input(type="uri_folder", path=dataset_id),
         model_name=model_name,
     )
 
