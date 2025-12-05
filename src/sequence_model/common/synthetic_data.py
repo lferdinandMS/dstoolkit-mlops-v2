@@ -50,7 +50,7 @@ def save_synthetic_data(output_path: str, num_sequences: int = 100, sequence_len
 
     # Generate all synthetic data from a single distribution
     all_data = generate_synthetic_text_data(num_sequences=num_sequences, sequence_length=sequence_length)
-    
+
     # Split into train (80%) and test (20%)
     split_idx = int(len(all_data) * 0.8)
     train_data = all_data[:split_idx]
@@ -61,10 +61,10 @@ def save_synthetic_data(output_path: str, num_sequences: int = 100, sequence_len
         pickle.dump(train_data, f)
 
     print(f"Synthetic training data saved to {output_path} ({len(train_data)} sequences)")
-    
+
     # Save test data to separate file
     test_path = output_dir / "test.pkl"
     with open(test_path, "wb") as f:
         pickle.dump(test_data, f)
-    
+
     print(f"Synthetic test data saved to {test_path} ({len(test_data)} sequences)")
